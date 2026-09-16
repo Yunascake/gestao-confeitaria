@@ -1,0 +1,2986 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão Confeitaria v18.1</title>
+  <script>
+    try {
+      if (localStorage.getItem('confeitaria-tema') === 'escuro') document.documentElement.classList.add('dark');
+    } catch (_) {}
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #db2777;
+      --primary-foreground: #ffffff;
+      --secondary: #fdf2f8;
+      --card: #ffffff;
+      --background: #fdfbf7;
+      --foreground: #1f2937;
+      --muted-foreground: #6b7280;
+      --border: #e5e7eb;
+    }
+
+    html.dark {
+      --primary: #f472b6;
+      --primary-foreground: #1f1018;
+      --secondary: #35202c;
+      --card: #1f2937;
+      --background: #111827;
+      --foreground: #f8fafc;
+      --muted-foreground: #cbd5e1;
+      --border: #475569;
+      color-scheme: dark;
+    }
+
+    body { transition: background-color .2s ease, color .2s ease; }
+    body:not(.planilha-ativa) header {
+      justify-content: center;
+      text-align: center;
+      padding-top: clamp(2rem, 7vh, 5rem);
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    body:not(.planilha-ativa) header h1 { font-size: clamp(2rem, 4vw, 3rem); }
+    body:not(.planilha-ativa) header p { font-size: 1.05rem; }
+    body:not(.planilha-ativa) #area-planilha {
+      max-width: 70rem;
+      margin-left: auto;
+      margin-right: auto;
+      padding: clamp(2rem, 5vw, 4rem);
+      border-radius: 1.25rem;
+      box-shadow: 0 20px 45px rgba(31, 41, 55, .10);
+    }
+    body:not(.planilha-ativa) #status-sem-planilha { text-align: center; }
+    body:not(.planilha-ativa) #status-sem-planilha h2 { font-size: clamp(1.35rem, 2.5vw, 1.75rem); }
+    body:not(.planilha-ativa) #status-sem-planilha p { font-size: 1rem; margin-bottom: 1.75rem; }
+    body:not(.planilha-ativa) #status-sem-planilha > label,
+    body:not(.planilha-ativa) #status-sem-planilha > button { padding: .85rem 1.25rem; font-size: 1rem; }
+    body:not(.planilha-ativa) #aviso-bloqueio { max-width: 70rem; margin-left: auto; margin-right: auto; }
+    @media (min-width: 640px) {
+      body:not(.planilha-ativa) #btn-tema { position: absolute; right: 0; top: clamp(2rem, 7vh, 5rem); }
+    }
+    @media (max-width: 639px) {
+      body:not(.planilha-ativa) header { flex-direction: column; gap: 1rem; }
+      body:not(.planilha-ativa) #btn-tema { margin-left: 0; }
+    }
+
+    html.dark .bg-white,
+    html.dark .bg-gray-50,
+    html.dark .bg-gray-100 { background-color: #1f2937 !important; }
+    html.dark .bg-pink-50,
+    html.dark .bg-blue-50,
+    html.dark .bg-green-50,
+    html.dark .bg-red-50 { background-color: #283548 !important; }
+    html.dark .text-gray-800,
+    html.dark .text-gray-700,
+    html.dark .text-gray-600 { color: #e2e8f0 !important; }
+    html.dark .text-gray-500,
+    html.dark .text-gray-400 { color: #94a3b8 !important; }
+    html.dark .border-gray-50,
+    html.dark .border-gray-100,
+    html.dark .border-gray-200 { border-color: #475569 !important; }
+    html.dark .hover\:bg-gray-50:hover,
+    html.dark .hover\:bg-gray-100:hover,
+    html.dark .hover\:bg-gray-200:hover,
+    html.dark .hover\:bg-pink-100:hover { background-color: #334155 !important; }
+    html.dark #aviso-bloqueio { background-color: #3b2f11 !important; border-color: #a16207 !important; color: #fde68a !important; }
+    html.dark input,
+    html.dark select,
+    html.dark textarea { color: var(--foreground); }
+    html.dark option { background-color: #1f2937; color: #f8fafc; }
+
+    /* Regras cruciais para exibição e ocultação das abas */
+    .area-content { display: none; }
+    .area-content.active { display: block; }
+
+    .tab-content-caixa { display: none; }
+    .tab-content-caixa.active { display: block; }
+
+    .tab-content-fab { display: none; }
+    .tab-content-fab.active { display: block; }
+
+    .tab-btn-active {
+      color: var(--primary) !important;
+      border-bottom: 2px solid var(--primary) !important;
+      font-weight: 700 !important;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-8 max-w-7xl mx-auto min-h-screen">
+  
+  <header class="mb-6 flex justify-between items-center">
+    <div>
+      <h1 class="text-3xl font-bold text-[var(--primary)] mb-1">🍰 Gestão Confeitaria</h1>
+      <p class="text-[var(--muted-foreground)]">Sistema integrado de Caixa, Insumos e Fichas Técnicas.</p>
+    </div>
+    <button type="button" id="btn-tema" onclick="alternarTema()" class="ml-4 shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-full px-4 py-2 font-semibold shadow-sm hover:opacity-90 transition" aria-label="Alternar tema">
+      🌙 Modo escuro
+    </button>
+  </header>
+
+  <!-- ÁREA: CARREGAR / STATUS DA PLANILHA -->
+  <div id="area-planilha" class="mb-8 bg-[var(--card)] border-2 border-[var(--primary)] rounded-xl p-5 shadow-sm">
+    <div id="status-sem-planilha">
+      <h2 class="text-lg font-semibold mb-2">📂 Comece carregando sua planilha</h2>
+      <p class="text-sm text-[var(--muted-foreground)] mb-4">
+        Para usar o sistema, inicie uma nova planilha em branco ou carregue o seu arquivo salvo (.xlsx).
+      </p>
+      <label class="inline-block bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded font-medium cursor-pointer hover:opacity-90 transition">
+        📂 Carregar Planilha (.xlsx)
+        <input type="file" id="input-carregar-planilha" accept=".xlsx" class="hidden">
+      </label>
+      <span class="text-sm text-[var(--muted-foreground)] mx-2">ou</span>
+      <button onclick="novaPlanilha()" class="inline-block bg-[var(--secondary)] border border-[var(--border)] px-4 py-2 rounded font-medium hover:opacity-90 text-[var(--foreground)] transition">
+        📄 Criar Nova Planilha em Branco
+      </button>
+    </div>
+    <div id="status-com-planilha" class="hidden">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p class="font-semibold text-green-600">✅ Planilha Ativa: <span id="nome-arquivo-carregado"></span></p>
+          <p class="text-xs text-[var(--muted-foreground)]"><span id="contagem-dados"></span></p>
+        </div>
+        <div>
+          <button onclick="salvarPlanilha()" class="mr-2 bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 shadow transition">
+            💾 SALVAR TRABALHO (.xlsx)
+          </button>
+          <button onclick="novaPlanilha()" class="inline-block bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] px-3 py-2 rounded font-medium hover:opacity-90 text-sm transition">
+            📄 Fechar / Novo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aviso-bloqueio" class="mb-6 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-lg p-4 text-sm">
+    ⚠️ Carregue ou inicie uma planilha acima para desbloquear o sistema.
+  </div>
+
+  <!-- CONTEÚDO PRINCIPAL (BLOQUEADO ATÉ CARREGAR) -->
+  <div id="conteudo-principal" class="hidden">
+    
+    <!-- MENU PRINCIPAL DAS 2 GRANDES ÁREAS -->
+    <div class="flex space-x-4 mb-6">
+      <button id="nav-caixa" onclick="switchArea('caixa')" class="flex-1 px-6 py-4 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-bold text-xl shadow-md transition">
+        🛍️ PEDIDOS & CAIXA
+        <p class="text-xs font-normal opacity-90 mt-1">Pedidos, Clientes e Dinheiro (Uso Diário)</p>
+      </button>
+      <button id="nav-fabrica" onclick="switchArea('fabrica')" class="flex-1 px-6 py-4 bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] rounded-xl font-bold text-xl shadow-md transition hover:bg-gray-100">
+        📝 FÁBRICA & CUSTOS
+        <p class="text-xs font-normal text-[var(--muted-foreground)] mt-1">Ingredientes e Fichas Técnicas (Uso Gerencial)</p>
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ÁREA 1: FRENTE DE CAIXA                    -->
+    <!-- ========================================== -->
+    <div id="area-caixa" class="area-content active">
+      <div class="flex space-x-2 border-b border-[var(--border)] mb-6 overflow-x-auto">
+        <button onclick="openTabCaixa('entradas')" class="tab-btn-caixa px-4 py-2 font-semibold tab-btn-active whitespace-nowrap" id="btn-entradas">Pedidos</button>
+        <button onclick="openTabCaixa('recebimentos')" class="tab-btn-caixa px-4 py-2 font-semibold text-[var(--muted-foreground)] whitespace-nowrap" id="btn-recebimentos">Caixa</button>
+        <button onclick="openTabCaixa('clientes')" class="tab-btn-caixa px-4 py-2 font-semibold text-[var(--muted-foreground)] whitespace-nowrap" id="btn-clientes">Clientes</button>
+        <button onclick="openTabCaixa('saidas')" class="tab-btn-caixa px-4 py-2 font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] whitespace-nowrap" id="btn-saidas">Saídas (Despesas)</button>
+        <button onclick="openTabCaixa('resumo')" class="tab-btn-caixa px-4 py-2 font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] whitespace-nowrap" id="btn-resumo">Resumo Financeiro</button>
+      </div>
+
+      <!-- ABA: ENTRADAS -->
+      <div id="entradas" class="tab-content-caixa active space-y-6">
+        <div id="painel-pedidos" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold mb-4" id="titulo-form-entrada">Novo Pedido</h2>
+          <label class="block text-sm font-medium mb-4">Cliente já cadastrado
+            <select id="ent-cliente-id" onchange="selecionarClientePedido()" class="mt-1 w-full border border-[var(--border)] rounded px-3 py-2 bg-[var(--background)]"><option value="">Novo cliente / venda avulsa</option></select>
+          </label>
+          <form id="form-entradas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Data</label>
+              <input type="date" id="ent-data" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Nome do Cliente</label>
+              <input type="text" id="ent-cliente" placeholder="Ex: Maria Silva" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">WhatsApp</label>
+              <input type="tel" id="ent-whatsapp" maxlength="15" placeholder="(00) 00000-0000" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Produto Vendido</label>
+              <select id="ent-produto" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+                <!-- Preenchido via JavaScript -->
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Status do Pedido</label>
+              <select id="ent-status-pedido" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+                <option>Confirmado</option>
+                <option>Orçamento</option>
+                <option>Em produção</option>
+                <option>Pronto</option>
+                <option>Entregue</option>
+                <option>Cancelado</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Quantidade</label>
+              <input type="number" id="ent-qtd" min="1" value="1" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Valor Unitário Cobrado (R$)</label>
+              <input type="number" id="ent-valor" step="0.01" min="0" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" placeholder="0.00">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Pagamento</label>
+              <select id="ent-pagamento" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+                <option>Pix</option>
+                <option>Cartão de Crédito</option>
+                <option>Cartão de Débito</option>
+                <option>Dinheiro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Situação do Pagamento</label>
+              <select id="ent-situacao-pagamento" onchange="atualizarCampoPagamento()" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+                <option>Pendente</option>
+                <option>Parcial</option>
+                <option>Pago</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Valor Recebido / Sinal (R$)</label>
+              <input type="number" id="ent-valor-pago" step="0.01" min="0" value="0" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+              <p id="ent-resumo-pagamento" class="text-xs text-[var(--muted-foreground)] mt-1">Restante calculado ao registrar.</p>
+            </div>
+            <div id="area-data-recebimento-inicial">
+              <label class="block text-sm font-medium mb-1">Data do Recebimento Inicial</label>
+              <input id="ent-data-recebimento" type="date" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Entrega / Retirada</label>
+              <input type="date" id="ent-data-entrega" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Endereço de Entrega</label>
+              <input id="ent-endereco" placeholder="Rua, número, bloco e apartamento" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Observações</label>
+              <input type="text" id="ent-observacoes" placeholder="Sabor, endereço, horário..." class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+            </div>
+            <div class="md:col-span-2 lg:col-span-3 border border-[var(--border)] rounded-lg p-4 bg-[var(--secondary)]">
+              <button type="button" onclick="adicionarItemVenda()" class="bg-blue-600 text-white px-4 py-2 rounded font-semibold">➕ Adicionar produto à venda</button>
+              <p class="text-sm text-[var(--muted-foreground)] mt-2">Escolha um produto, informe a quantidade e adicione. Repita para os demais produtos.</p>
+              <div id="ent-itens" class="mt-3 space-y-2"></div>
+              <p class="font-bold mt-3">Total da venda: <span id="ent-total-venda">R$ 0,00</span></p>
+            </div>
+            <div class="flex items-end gap-2">
+              <button type="submit" id="btn-salvar-entrada" class="flex-1 bg-[var(--primary)] text-[var(--primary-foreground)] py-2 rounded font-medium hover:opacity-90 transition">✓ Registrar Pedido</button>
+              <button type="button" id="btn-cancelar-entrada" onclick="cancelarEdicaoEntrada()" class="hidden border border-[var(--border)] px-3 py-2 rounded font-medium hover:bg-gray-50">Cancelar</button>
+            </div>
+          </form>
+        </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-xl font-semibold">Gerenciar Cardápio</h2>
+              <p class="text-sm text-[var(--muted-foreground)]">As fichas técnicas entram aqui automaticamente. Adicione manualmente apenas produtos sem receita.</p>
+            </div>
+          </div>
+          <form id="form-novo-produto" class="grid grid-cols-1 sm:grid-cols-[1fr_130px_auto] gap-2 items-end bg-[var(--secondary)] border border-[var(--border)] rounded-lg p-3 mb-4">
+            <label class="text-xs font-medium">
+              Novo produto
+              <input type="text" id="novo-produto-nome" required placeholder="Ex: Bolo de cenoura" class="block w-full mt-1 bg-white border border-[var(--border)] rounded px-3 py-2 text-sm">
+            </label>
+            <label class="text-xs font-medium">
+              Preço (R$)
+              <input type="number" id="novo-produto-preco" min="0" step="0.01" placeholder="Opcional" class="block w-full mt-1 bg-white border border-[var(--border)] rounded px-3 py-2 text-sm">
+            </label>
+            <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm font-bold hover:bg-green-700">➕ Adicionar</button>
+          </form>
+          <div id="lista-cardapio" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+          <div class="flex flex-wrap items-end gap-3 mb-4">
+            <label class="text-sm">Buscar pedido<input id="pedido-busca" oninput="renderEntradas()" placeholder="Cliente, WhatsApp ou produto" class="block border border-[var(--border)] rounded px-3 py-2 bg-[var(--background)]"></label>
+            <label class="text-sm">Mostrar<select id="pedido-filtro" onchange="renderEntradas()" class="block border border-[var(--border)] rounded px-3 py-2 bg-[var(--background)]">
+              <option value="">Todos os pedidos</option><option value="hoje">Entregas de hoje</option><option value="atrasados">Entregas atrasadas</option>
+              <option>Orçamento</option><option>Confirmado</option><option>Em produção</option><option>Pronto</option><option>Entregue</option><option>Cancelado</option>
+            </select></label>
+          </div>
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <tr>
+                <th class="py-2 pr-4">Data</th>
+                <th class="py-2 pr-4">Cliente</th>
+                <th class="py-2 pr-4">WhatsApp</th>
+                <th class="py-2 pr-4">Produto</th>
+                <th class="py-2 pr-4">Status</th>
+                <th class="py-2 pr-4">Qtd</th>
+                <th class="py-2 pr-4">Total</th>
+                <th class="py-2 pr-4">Recebido</th>
+                <th class="py-2 pr-4">Restante</th>
+                <th class="py-2 pr-4">Situação</th>
+                <th class="py-2 pr-4">Entrega/Retirada</th>
+                <th class="py-2 pr-4">Pagamento</th>
+                <th class="py-2 pr-4">Observações</th>
+                <th class="py-2">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="lista-entradas"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="recebimentos" class="tab-content-caixa space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="painel-caixa"></div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold">Registrar Recebimento</h2>
+          <form id="form-recebimento" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-6">
+            <label>Pedido<select id="rec-pedido" required onchange="atualizarResumoRecebimento()" class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></select></label>
+            <label>Data do recebimento<input id="rec-data" type="date" required class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <label>Valor desta parcela (R$)<input id="rec-valor" type="number" min="0.01" step="0.01" required class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <label>Forma de pagamento<select id="rec-pagamento" class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"><option>Pix</option><option>Dinheiro</option><option>Cartão de Crédito</option><option>Cartão de Débito</option></select></label>
+            <label class="md:col-span-2">Observações<input id="rec-observacoes" class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <p id="rec-resumo" class="md:col-span-2 text-sm"></p>
+            <button type="submit" class="bg-green-600 text-white rounded px-4 py-2 font-semibold">Registrar pagamento</button>
+          </form>
+          <h2 class="text-xl font-semibold">Valores recebidos por pedido</h2>
+          <p class="text-sm text-[var(--muted-foreground)] mt-1 mb-4">Registre somente o valor de cada novo pagamento. O total recebido e o restante são atualizados automaticamente. Um cancelamento não apaga recebimentos; registre o estorno quando houver devolução.</p>
+          <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead><tr class="border-b border-[var(--border)]"><th class="p-2">Pedido / Cliente</th><th class="p-2">Recebido</th><th class="p-2">A receber</th><th class="p-2">Pagamento</th><th class="p-2">Ação</th></tr></thead><tbody id="lista-recebimentos"></tbody></table></div>
+          <h2 class="text-xl font-semibold mt-6 mb-3">Histórico de Recebimentos</h2>
+          <p class="text-sm text-[var(--muted-foreground)] mb-3">Saldos anteriores preservam o valor importado, sem atribuir uma data desconhecida. Estornos ficam registrados junto ao recebimento original.</p>
+          <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead><tr><th class="p-2">Data</th><th class="p-2">Pedido / Cliente</th><th class="p-2">Tipo</th><th class="p-2">Valor</th><th class="p-2">Pagamento</th><th class="p-2">Observações</th><th class="p-2">Ação</th></tr></thead><tbody id="historico-recebimentos"></tbody></table></div>
+          <button onclick="openTabCaixa('saidas')" class="mt-4 text-[var(--primary)] font-semibold">Ver despesas →</button>
+        </div>
+      </div>
+      <div id="clientes" class="tab-content-caixa space-y-6">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 id="titulo-cliente" class="text-xl font-semibold mb-4">Cadastrar Cliente</h2>
+          <form id="form-clientes" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label>Nome<input id="cli-nome" required class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <label>WhatsApp<input id="cli-whatsapp" type="tel" placeholder="DDD e número" class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <label class="md:col-span-2">Endereço<input id="cli-endereco" class="block w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]"></label>
+            <div class="flex gap-2"><button type="submit" class="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded">Salvar Cliente</button><button type="button" onclick="cancelarEdicaoCliente()" class="border border-[var(--border)] px-4 py-2 rounded">Limpar / Cancelar</button></div>
+          </form>
+        </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold">Seus Clientes</h2>
+          <p class="text-sm text-[var(--muted-foreground)] mb-4">Clientes informados nos pedidos são cadastrados automaticamente. Alterações aqui valem para próximos pedidos; os anteriores preservam os dados registrados.</p>
+          <input id="cliente-busca" oninput="renderClientes()" placeholder="Buscar nome ou WhatsApp" class="mb-4 w-full border border-[var(--border)] rounded p-2 bg-[var(--background)]">
+          <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th class="p-2">Nome</th><th class="p-2">WhatsApp</th><th class="p-2">Endereço</th><th class="p-2">Ação</th></tr></thead><tbody id="lista-clientes"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ABA: SAÍDAS -->
+      <div id="saidas" class="tab-content-caixa space-y-6">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold mb-4">Lançar Despesa (Gastos do dia)</h2>
+          <form id="form-saidas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Data</label>
+              <input type="date" id="sai-data" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Categoria</label>
+              <select id="sai-categoria" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+                <option>Ingredientes</option>
+                <option>Embalagens</option>
+                <option>Impostos/Taxas</option>
+                <option>Transporte/Frete</option>
+                <option>Contas (Água/Luz)</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Descrição</label>
+              <input type="text" id="sai-descricao" placeholder="Ex: Farinha, Caixa de embalagem..." class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Valor Gasto (R$)</label>
+              <input type="number" id="sai-valor" step="0.01" min="0" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required placeholder="0.00">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="w-full bg-red-600 text-white py-2 rounded font-medium hover:opacity-90 transition">➕ Registrar Gasto</button>
+            </div>
+          </form>
+        </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <tr>
+                <th class="py-2 pr-4">Data</th>
+                <th class="py-2 pr-4">Categoria</th>
+                <th class="py-2 pr-4">Descrição</th>
+                <th class="py-2 pr-4">Valor</th>
+                <th class="py-2">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="lista-saidas"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA: RESUMO -->
+      <div id="resumo" class="tab-content-caixa space-y-6">
+        <p class="text-sm text-[var(--muted-foreground)] mb-4">Recebimentos são filtrados pela data de cada pagamento ou estorno. Saldos anteriores sem data aparecem somente no período completo. Valores de pedidos e a receber seguem a data do pedido.</p>
+        <!-- Filtro de Período -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 class="text-xl font-semibold">📅 Resumo Financeiro por Período</h2>
+              <p class="text-xs text-[var(--muted-foreground)]">Selecione o intervalo de datas para analisar suas vendas e lucros.</p>
+            </div>
+            
+            <!-- Atalhos de Período -->
+            <div class="flex flex-wrap gap-2 text-xs">
+              <button type="button" onclick="aplicarFiltroPeriodo('mes-atual')" class="px-3 py-1.5 bg-[var(--secondary)] border border-[var(--border)] rounded-lg font-medium hover:bg-pink-100 transition">🗓️ Mês Atual</button>
+              <button type="button" onclick="aplicarFiltroPeriodo('7dias')" class="px-3 py-1.5 bg-gray-100 border border-[var(--border)] rounded-lg font-medium hover:bg-gray-200 transition">⚡ Últimos 7 Dias</button>
+              <button type="button" onclick="aplicarFiltroPeriodo('30dias')" class="px-3 py-1.5 bg-gray-100 border border-[var(--border)] rounded-lg font-medium hover:bg-gray-200 transition">📆 Últimos 30 Dias</button>
+              <button type="button" onclick="aplicarFiltroPeriodo('hoje')" class="px-3 py-1.5 bg-gray-100 border border-[var(--border)] rounded-lg font-medium hover:bg-gray-200 transition">📍 Hoje</button>
+              <button type="button" onclick="aplicarFiltroPeriodo('tudo')" class="px-3 py-1.5 bg-gray-100 border border-[var(--border)] rounded-lg font-medium hover:bg-gray-200 transition">🌐 Ver Tudo</button>
+            </div>
+          </div>
+
+          <!-- Campos De Data / Até Data -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-[var(--border)] items-end">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">De (Data Inicial):</label>
+              <input type="date" id="resumo-data-inicio" onchange="atualizarResumo()" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--foreground)]">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">Até (Data Final):</label>
+              <input type="date" id="resumo-data-fim" onchange="atualizarResumo()" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-sm text-[var(--foreground)]">
+            </div>
+            <div>
+              <p class="text-xs text-[var(--muted-foreground)]" id="resumo-legenda-periodo">Exibindo dados do período selecionado</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cards Principais de Métricas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 shadow-sm text-center">
+            <p class="text-[var(--muted-foreground)] font-medium mb-1">Valores Recebidos</p>
+            <p class="text-3xl font-bold text-green-600" id="resumo-entradas">R$ 0,00</p>
+            <p class="text-xs text-gray-400 mt-2 font-medium" id="resumo-qtd-vendas">0 vendas</p>
+          </div>
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 shadow-sm text-center">
+            <p class="text-[var(--muted-foreground)] font-medium mb-1">A Receber</p>
+            <p class="text-3xl font-bold text-amber-600" id="resumo-a-receber">R$ 0,00</p>
+            <p class="text-xs text-gray-400 mt-2 font-medium">Pedidos não cancelados</p>
+          </div>
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 shadow-sm text-center">
+            <p class="text-[var(--muted-foreground)] font-medium mb-1">Saídas (Despesas)</p>
+            <p class="text-3xl font-bold text-red-500" id="resumo-saidas">R$ 0,00</p>
+            <p class="text-xs text-gray-400 mt-2 font-medium" id="resumo-qtd-gastos">0 gastos</p>
+          </div>
+          <div class="bg-[var(--card)] border border-l-4 border-l-[var(--primary)] rounded-xl p-6 shadow-sm text-center">
+            <p class="text-[var(--muted-foreground)] font-medium mb-1">SALDO DO PERÍODO</p>
+            <p class="text-3xl font-bold text-[var(--primary)]" id="resumo-lucro">R$ 0,00</p>
+            <p class="text-xs text-gray-500 mt-2 font-medium">Margem de Lucro: <span id="resumo-margem" class="font-bold text-gray-700">0%</span></p>
+          </div>
+        </div>
+
+        <!-- Indicadores Inteligentes do Período -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">🏆 Produto Campeão de Vendas</p>
+            <p class="text-base font-bold text-[var(--primary)]" id="resumo-campeao">Nenhuma venda</p>
+            <p class="text-xs text-gray-400 mt-1">Mais pedido no período selecionado</p>
+          </div>
+
+          <div class="bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">🏷️ Ticket Médio por Venda</p>
+            <p class="text-base font-bold text-gray-800" id="resumo-ticket">R$ 0,00</p>
+            <p class="text-xs text-gray-400 mt-1">Valor médio gasto por cliente</p>
+          </div>
+
+          <div class="bg-white border border-[var(--border)] rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">💸 Maior Centro de Custos</p>
+            <p class="text-base font-bold text-red-600" id="resumo-maior-gasto">Nenhum gasto</p>
+            <p class="text-xs text-gray-400 mt-1">Categoria onde mais saiu dinheiro</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ÁREA 2: FÁBRICA & CUSTOS                   -->
+    <!-- ========================================== -->
+    <div id="area-fabrica" class="area-content">
+      <div class="flex space-x-2 border-b border-[var(--border)] mb-6 overflow-x-auto">
+        <button onclick="openTabFabrica('insumos')" class="tab-btn-fab px-4 py-2 font-semibold tab-btn-active whitespace-nowrap cursor-pointer" id="btn-insumos">📦 1. Banco de Insumos</button>
+        <button onclick="openTabFabrica('receitas')" class="tab-btn-fab px-4 py-2 font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] whitespace-nowrap cursor-pointer" id="btn-receitas">📋 2. Fichas Técnicas (Receitas)</button>
+        <button onclick="openTabFabrica('fornecedores')" class="tab-btn-fab px-4 py-2 font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] whitespace-nowrap cursor-pointer" id="btn-fornecedores">🚚 3. Fornecedores & Compras</button>
+      </div>
+
+      <!-- ABA: INSUMOS -->
+      <div id="insumos" class="tab-content-fab active space-y-6">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold mb-2" id="titulo-form-insumo">Cadastrar Novo Insumo (Ingrediente ou Embalagem)</h2>
+          <p class="text-sm text-[var(--muted-foreground)] mb-4">Insira o preço total pago na embalagem fechada do supermercado. O sistema calcula o preço da grama/ml.</p>
+          <form id="form-insumos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Nome do Insumo</label>
+              <input type="text" id="ins-nome" placeholder="Ex: Leite Condensado Moça" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Preço Pago (R$)</label>
+              <input type="number" id="ins-preco" step="0.01" min="0" placeholder="Ex: 6.50" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Peso/Volume Total</label>
+              <div class="flex">
+                <input type="number" id="ins-peso" step="0.1" min="0" placeholder="Ex: 395" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-l px-3 py-2 text-[var(--foreground)]" required>
+                <select id="ins-medida" class="bg-[var(--secondary)] border border-l-0 border-[var(--border)] rounded-r px-2 text-[var(--foreground)]">
+                  <option value="g">gramas (g)</option>
+                  <option value="ml">mililitros (ml)</option>
+                  <option value="un">unidade(s)</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-end space-x-2">
+              <button type="submit" id="btn-salvar-insumo" class="flex-1 bg-[var(--primary)] text-[var(--primary-foreground)] py-2 rounded font-medium hover:opacity-90 transition">Salvar Insumo</button>
+              <button type="button" id="btn-cancelar-insumo" onclick="cancelarEdicaoInsumo()" class="hidden px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-100">Cancelar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+          <h3 class="text-lg font-semibold mb-3">Seu Estoque de Insumos (Base de Cálculo)</h3>
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <tr>
+                <th class="py-2 pr-4">Nome do Insumo</th>
+                <th class="py-2 pr-4">Preço Pago</th>
+                <th class="py-2 pr-4">Rendimento/Peso</th>
+                <th class="py-2 pr-4 text-[var(--primary)] font-bold">Custo Fracionado (por unidade)</th>
+                <th class="py-2">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="lista-insumos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA: RECEITAS (FICHA TÉCNICA) -->
+      <div id="receitas" class="tab-content-fab space-y-6">
+        
+        <!-- Bloco de Montagem / Edição de Receita -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h2 class="text-xl font-semibold" id="titulo-ficha-form">Criar Nova Ficha Técnica</h2>
+              <p class="text-sm text-[var(--muted-foreground)]">Adicione os ingredientes do banco de insumos para calcular o custo exato.</p>
+            </div>
+            <button id="btn-cancelar-ficha" onclick="cancelarEdicaoReceita()" class="hidden text-sm text-red-500 hover:underline font-medium">Cancelar Edição</button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium mb-1">Nome da Receita / Bolo / Recheio</label>
+              <input type="text" id="rec-nome" placeholder="Ex: Bolo de Cenoura com Brigadeiro" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)] font-semibold">
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="rec-rendimento">Rendimento (quantidade de unidades)</label>
+              <input type="number" id="rec-rendimento" min="0.01" step="0.01" value="1" placeholder="Ex: 10" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]">
+              <p class="text-xs text-gray-500 mt-1">Use 1 para um bolo inteiro ou a quantidade produzida, como 10 potes.</p>
+            </div>
+          </div>
+
+          <!-- Adicionar Ingrediente -->
+          <div class="bg-gray-50 border border-[var(--border)] rounded-lg p-4 mb-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-2">➕ Adicionar Ingrediente à Ficha</h3>
+            <form id="form-item-receita" class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-medium mb-1">Escolha o Insumo Cadastrado</label>
+                <select id="rec-insumo-select" class="w-full bg-white border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)] text-sm" required>
+                  <!-- Insumos preenchidos dinamicamente -->
+                </select>
+              </div>
+              <div class="flex space-x-2">
+                <div class="flex-1">
+                  <label class="block text-xs font-medium mb-1">Qtd Utilizada</label>
+                  <input type="number" id="rec-qtd-usada" step="0.1" min="0" placeholder="Ex: 200" class="w-full bg-white border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)] text-sm" required>
+                </div>
+                <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded text-sm font-medium hover:bg-gray-700 transition">Incluir</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tabela de Ingredientes Adicionados -->
+          <div class="overflow-x-auto mb-4">
+            <table class="w-full text-left text-sm">
+              <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+                <tr>
+                  <th class="py-2">Ingrediente</th>
+                  <th class="py-2">Quantidade</th>
+                  <th class="py-2 text-right">Custo Calculado</th>
+                  <th class="py-2 text-center w-16">Remover</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-ingredientes-atual">
+                <tr><td colspan="4" class="py-3 text-center text-gray-400 text-xs">Nenhum ingrediente adicionado nesta ficha ainda.</td></tr>
+              </tbody>
+              <tfoot class="font-bold border-t border-[var(--border)] text-base">
+                <tr>
+                  <td colspan="2" class="py-3">CUSTO TOTAL DESTA FICHA:</td>
+                  <td class="py-3 text-right text-red-600 font-black text-lg" id="custo-total-atual">R$ 0,00</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Precificação da Receita -->
+          <div class="bg-pink-50 border border-pink-200 rounded-lg p-4 mb-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-gray-700">🏷️ Precificação da Receita</h3>
+                <p class="text-xs text-gray-500">Informe o preço ou a margem bruta; o outro campo será calculado automaticamente.</p>
+              </div>
+              <p class="text-xs font-semibold text-gray-600">Custo por unidade: <span id="custo-precificacao-atual" class="text-red-600">R$ 0,00</span></p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-1" for="rec-preco-venda">Preço de Venda por Unidade (R$)</label>
+                <input type="number" id="rec-preco-venda" step="0.01" min="0" placeholder="Ex: 45.00" class="w-full bg-white border border-pink-200 rounded px-3 py-2 text-[var(--foreground)]">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1" for="rec-margem">Margem Bruta (%)</label>
+                <input type="number" id="rec-margem" step="0.01" max="99.99" placeholder="Ex: 40.00" class="w-full bg-white border border-pink-200 rounded px-3 py-2 text-[var(--foreground)]">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-4 text-center">
+              <div class="bg-white border border-pink-100 rounded-lg p-2">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase">Custo total</span>
+                <strong id="resumo-custo-total" class="text-red-600">R$ 0,00</strong>
+              </div>
+              <div class="bg-white border border-pink-100 rounded-lg p-2">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase">Preço por unidade</span>
+                <strong id="resumo-preco-unitario" class="text-gray-800">—</strong>
+              </div>
+              <div class="bg-white border border-pink-100 rounded-lg p-2">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase">Valor total de venda</span>
+                <strong id="resumo-venda-total" class="text-gray-800">—</strong>
+              </div>
+              <div class="bg-white border border-pink-100 rounded-lg p-2">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase">Lucro total</span>
+                <strong id="resumo-lucro-total" class="text-gray-500">—</strong>
+              </div>
+            </div>
+            <p id="erro-precificacao" class="hidden text-xs text-red-600 font-medium mt-2" role="alert"></p>
+          </div>
+
+          <button onclick="salvarReceita()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 shadow transition flex items-center justify-center text-base">
+            <span class="mr-2">✔️</span> Salvar Ficha Técnica Finalizada
+          </button>
+        </div>
+
+        <!-- Lista de Fichas Técnicas Prontas -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h3 class="text-lg font-semibold mb-3">Suas Fichas Técnicas Salvas</h3>
+          <div id="lista-receitas-salvas" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Cards de receitas entram aqui -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: FORNECEDORES E COMPRAS -->
+      <div id="fornecedores" class="tab-content-fab space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+            <h2 class="text-xl font-semibold mb-1" id="titulo-form-fornecedor">Cadastrar Fornecedor</h2>
+            <p class="text-sm text-[var(--muted-foreground)] mb-4">O código é gerado automaticamente e permanece estável no histórico.</p>
+            <form id="form-fornecedores" class="flex flex-col sm:flex-row gap-3 items-end">
+              <div class="flex-1 w-full">
+                <label class="block text-sm font-medium mb-1" for="forn-nome">Nome do Fornecedor</label>
+                <input type="text" id="forn-nome" placeholder="Ex: Atacadão Centro" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-[var(--foreground)]" required>
+              </div>
+              <button type="submit" id="btn-salvar-fornecedor" class="w-full sm:w-auto bg-[var(--primary)] text-white px-4 py-2 rounded font-medium hover:opacity-90">Salvar</button>
+              <button type="button" id="btn-cancelar-fornecedor" onclick="cancelarEdicaoFornecedor()" class="hidden w-full sm:w-auto border border-gray-300 px-3 py-2 rounded text-sm hover:bg-gray-100">Cancelar</button>
+            </form>
+          </div>
+
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+            <h3 class="text-lg font-semibold mb-3">Fornecedores Cadastrados</h3>
+            <table class="w-full text-left text-sm whitespace-nowrap">
+              <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+                <tr><th class="py-2 pr-4">ID</th><th class="py-2 pr-4">Nome</th><th class="py-2">Ação</th></tr>
+              </thead>
+              <tbody id="lista-fornecedores"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
+          <h2 class="text-xl font-semibold mb-1" id="titulo-form-compra">Registrar Compra de Insumo</h2>
+          <p class="text-sm text-[var(--muted-foreground)] mb-4">O custo unitário permite comparar embalagens de tamanhos diferentes.</p>
+          <form id="form-compras" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-data">Data</label>
+              <input type="date" id="compra-data" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-fornecedor">Fornecedor</label>
+              <select id="compra-fornecedor" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2" required></select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-insumo">Insumo</label>
+              <select id="compra-insumo" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2" required></select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-preco">Preço por Embalagem (R$)</label>
+              <input type="number" id="compra-preco" step="0.01" min="0.01" placeholder="Ex: 6.50" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-conteudo">Conteúdo por Embalagem</label>
+              <div class="flex">
+                <input type="number" id="compra-conteudo" step="0.01" min="0.01" placeholder="Ex: 395" class="w-full bg-[var(--background)] border border-[var(--border)] rounded-l px-3 py-2" required>
+                <span id="compra-medida" class="bg-gray-100 border border-l-0 border-[var(--border)] rounded-r px-3 py-2 text-sm text-gray-600">—</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" for="compra-quantidade">Quantidade de Embalagens</label>
+              <input type="number" id="compra-quantidade" step="1" min="1" value="1" class="w-full bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2" required>
+            </div>
+            <div class="lg:col-span-3 flex flex-col sm:flex-row gap-2">
+              <button type="submit" id="btn-salvar-compra" class="flex-1 bg-green-600 text-white py-2 rounded font-medium hover:bg-green-700">Registrar Compra</button>
+              <button type="button" id="btn-cancelar-compra" onclick="cancelarEdicaoCompra()" class="hidden border border-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-100">Cancelar Edição</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+            <div>
+              <h3 class="text-lg font-semibold">Comparativo por Fornecedor</h3>
+              <p class="text-xs text-[var(--muted-foreground)]">Compara a compra mais recente de cada fornecedor para o insumo.</p>
+            </div>
+            <select id="filtro-comparativo-insumo" onchange="renderComparativoCompras()" class="bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-sm"></select>
+          </div>
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <tr><th class="py-2 pr-4">Insumo</th><th class="py-2 pr-4">Fornecedor</th><th class="py-2 pr-4">Última Compra</th><th class="py-2 pr-4">Embalagem</th><th class="py-2 pr-4">Custo Unitário</th><th class="py-2">Comparação</th></tr>
+            </thead>
+            <tbody id="lista-comparativo-compras"></tbody>
+          </table>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm overflow-x-auto">
+          <h3 class="text-lg font-semibold mb-3">Histórico de Compras</h3>
+          <table class="w-full text-left text-sm whitespace-nowrap">
+            <thead class="border-b border-[var(--border)] text-[var(--muted-foreground)]">
+              <tr><th class="py-2 pr-4">Data</th><th class="py-2 pr-4">Fornecedor</th><th class="py-2 pr-4">Insumo</th><th class="py-2 pr-4">Qtd.</th><th class="py-2 pr-4">Preço/Emb.</th><th class="py-2 pr-4">Conteúdo</th><th class="py-2 pr-4">Custo Unit.</th><th class="py-2 pr-4">Total</th><th class="py-2">Ação</th></tr>
+            </thead>
+            <tbody id="lista-compras"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div> 
+  <!-- FIM CONTEÚDO PRINCIPAL -->
+
+  <script>
+    // Configura data padrão como hoje
+    document.getElementById('ent-data').valueAsDate = new Date();
+    document.getElementById('sai-data').valueAsDate = new Date();
+    document.getElementById('compra-data').valueAsDate = new Date();
+
+    // ========== NAVEGAÇÃO ENTRE AS 2 GRANDES ÁREAS ==========
+    function switchArea(area) {
+      document.querySelectorAll('.area-content').forEach(el => el.classList.remove('active'));
+      const btnCaixa = document.getElementById('nav-caixa');
+      const btnFabrica = document.getElementById('nav-fabrica');
+      
+      if(area === 'caixa') {
+        document.getElementById('area-caixa').classList.add('active');
+        btnCaixa.className = "flex-1 px-6 py-4 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-bold text-xl shadow-md transition";
+        btnFabrica.className = "flex-1 px-6 py-4 bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] rounded-xl font-bold text-xl shadow-md transition hover:bg-gray-100";
+      } else {
+        document.getElementById('area-fabrica').classList.add('active');
+        btnFabrica.className = "flex-1 px-6 py-4 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-xl font-bold text-xl shadow-md transition";
+        btnCaixa.className = "flex-1 px-6 py-4 bg-[var(--secondary)] border border-[var(--border)] text-[var(--foreground)] rounded-xl font-bold text-xl shadow-md transition hover:bg-gray-100";
+      }
+    }
+
+    // ========== NAVEGAÇÃO DE ABAS (CAIXA) ==========
+    function openTabCaixa(tabName) {
+      document.querySelectorAll('.tab-content-caixa').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn-caixa').forEach(btn => {
+        btn.classList.remove('tab-btn-active');
+        btn.classList.add('text-[var(--muted-foreground)]');
+      });
+      
+      const tabEl = document.getElementById(tabName);
+      if (tabEl) tabEl.classList.add('active');
+      
+      const btn = document.getElementById('btn-' + tabName);
+      if (btn) {
+        btn.classList.remove('text-[var(--muted-foreground)]');
+        btn.classList.add('tab-btn-active');
+      }
+      
+      if (tabName === 'resumo') atualizarResumo();
+    }
+
+    // ========== NAVEGAÇÃO DE ABAS (FÁBRICA) ==========
+    function openTabFabrica(tabName) {
+      document.querySelectorAll('.tab-content-fab').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn-fab').forEach(btn => {
+        btn.classList.remove('tab-btn-active');
+        btn.classList.add('text-[var(--muted-foreground)]');
+      });
+      
+      const tabEl = document.getElementById(tabName);
+      if (tabEl) tabEl.classList.add('active');
+      
+      const btn = document.getElementById('btn-' + tabName);
+      if (btn) {
+        btn.classList.remove('text-[var(--muted-foreground)]');
+        btn.classList.add('tab-btn-active');
+      }
+    }
+
+    // ========== ESTADO GLOBAL DO SISTEMA ==========
+    let sequenciaPedido = 0;
+    let entradas = [];
+    let clientes = [];
+    let clienteEmEdicao = null;
+    let saidas = [];
+    let insumos = [];
+    let receitas = [];
+    let fornecedores = [];
+    let compras = [];
+    let produtos = [];
+    let planilhaCarregada = false;
+    let alteracoesPendentes = false;
+
+    // Estado da Ficha Técnica sendo montada/editada
+    let receitaAtualIngredientes = [];
+    let indiceEntradaEmEdicao = null;
+    let itensVendaAtual = [];
+    let indiceReceitaEmEdicao = null;
+    let indiceInsumoEmEdicao = null;
+    let indiceFornecedorEmEdicao = null;
+    let indiceCompraEmEdicao = null;
+    const statusPedidos = ['Orçamento', 'Confirmado', 'Em produção', 'Pronto', 'Entregue', 'Cancelado'];
+
+    const produtosPadrao = [
+      ["Bolo Caseiro 15x5 sem cobertura", 18], ["Bolo Caseiro 15x5 com cobertura", 28],
+      ["Bolo Caseiro 20x5 sem cobertura", 25], ["Bolo Caseiro 20x5 com cobertura", 38],
+      ["Bento Cake Chantilly", 40], ["Bento Cake Buttercream", 50],
+      ["Bolo P Chantilly", 85], ["Bolo P Buttercream", 105],
+      ["Bolo M Chantilly", 135], ["Bolo M Buttercream", 160],
+      ["Bolo G Chantilly", 190], ["Bolo G Buttercream", 235],
+      ["Docinho trad. 50un", 70], ["Docinho trad. 100un", 130],
+      ["Docinho Ninho 50un", 80], ["Docinho Ninho 100un", 150],
+      ["Kit Festa P", 140], ["Kit Festa M", 215],
+      ["Bolo de Pote (Massa ninho + Recheio ninho)", null], ["Bolo de Pote (Massa amant. + Ninho com morango)", null],
+      ["Bolo de Pote (Chocolate + Brigadeiro)", null], ["Bolo de Pote (Chocolate + Ninho e brigadeiro)", null]
+    ];
+
+    function criarProdutosPadrao() {
+      return produtosPadrao.map(([nome, preco], index) => ({ id: index + 1, nome, preco }));
+    }
+
+    function proximoIdProduto() {
+      return produtos.reduce((maior, produto) => Math.max(maior, Number(produto.id) || 0), 0) + 1;
+    }
+
+    function normalizarProduto(produto, indice) {
+      const id = Number(produto?.id);
+      const precoInformado = produto?.preco !== '' && produto?.preco !== null && produto?.preco !== undefined;
+      const preco = precoInformado ? Number(produto.preco) : null;
+      return {
+        id: Number.isInteger(id) && id > 0 ? id : indice + 1,
+        nome: String(produto?.nome || '').trim(),
+        preco: Number.isFinite(preco) && preco >= 0 ? preco : null
+      };
+    }
+
+    function integrarCardapioComReceitas(baseProdutos, baseReceitas) {
+      return baseProdutos.filter(produto => {
+        const receita = baseReceitas.find(item => item.nome.toLowerCase() === produto.nome.toLowerCase());
+        if (!receita) return true;
+        if (!Number.isFinite(receita.sellingPrice) && Number.isFinite(produto.preco)) receita.sellingPrice = produto.preco;
+        return false;
+      });
+    }
+
+    function nomeExisteNoCardapio(nome, produtoIgnorado = null, receitaIgnorada = null) {
+      const nomeNormalizado = nome.toLowerCase();
+      return produtos.some(produto => produto !== produtoIgnorado && produto.nome.toLowerCase() === nomeNormalizado)
+        || receitas.some(receita => receita !== receitaIgnorada && receita.nome.toLowerCase() === nomeNormalizado);
+    }
+
+    function marcarAlteracao() { alteracoesPendentes = true; }
+
+    window.addEventListener('beforeunload', event => {
+      if (!alteracoesPendentes) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+
+    function atualizarBotaoTema() {
+      const escuro = document.documentElement.classList.contains('dark');
+      const botao = document.getElementById('btn-tema');
+      botao.textContent = escuro ? '☀️ Modo claro' : '🌙 Modo escuro';
+      botao.setAttribute('aria-pressed', String(escuro));
+    }
+
+    function alternarTema() {
+      const escuro = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('confeitaria-tema', escuro ? 'escuro' : 'claro'); } catch (_) {}
+      atualizarBotaoTema();
+    }
+
+    atualizarBotaoTema();
+
+    function arredonda(v) { return Math.round((v + Number.EPSILON) * 100) / 100; }
+    function formatCurrency(val) { return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+
+    function valorPagoVenda(venda) {
+      if (Array.isArray(venda?.recebimentos)) return arredonda(venda.recebimentos.reduce((s, r) => s + r.valor, 0));
+      if (Number.isFinite(Number(venda?.valorPago))) return Math.max(0, Math.min(Number(venda.valorPago), Number(venda.total) || 0));
+      return venda?.situacaoPagamento === 'Pendente' ? 0 : Number(venda?.total) || 0;
+    }
+
+    function restanteVenda(venda) {
+      return arredonda(Math.max(0, (Number(venda?.total) || 0) - valorPagoVenda(venda)));
+    }
+
+    function dataRecebimentoValida(valor) {
+      const iso = dataParaISO(valor);
+      if (!iso) return '';
+      const date = new Date(`${iso}T12:00:00Z`);
+      return !Number.isNaN(date.getTime()) && date.toISOString().slice(0,10) === iso ? iso : '';
+    }
+    function garantirHistorico(pedido) {
+      if (!pedido.id) pedido.id = `pedido-${Date.now()}-${++sequenciaPedido}`;
+      if (!Array.isArray(pedido.recebimentos)) {
+        const saldo = valorPagoVenda(pedido);
+        pedido.recebimentos = saldo > 0 ? [{ id: 1, data: '', valor: saldo, pagamento: pedido.pagamento || 'Não informado', tipo: 'Saldo anterior', observacoes: 'Valor acumulado importado; datas e parcelas anteriores não informadas.' }] : [];
+      }
+      return pedido.recebimentos;
+    }
+    function sincronizarPagamento(pedido) {
+      pedido.valorPago = valorPagoVenda(pedido);
+      pedido.valorRestante = restanteVenda(pedido);
+      pedido.situacaoPagamento = pedido.valorRestante === 0 ? 'Pago' : (pedido.valorPago > 0 ? 'Parcial' : 'Pendente');
+    }
+    const ServicoRecebimentos = {
+      registrar(pedido, dados) {
+        const valor = arredonda(Number(dados.valor));
+        const data = dataRecebimentoValida(dados.data);
+        if (!data || !Number.isFinite(valor) || valor <= 0 || valor > restanteVenda(pedido)) throw new Error('Informe data e valor maior que zero, limitado ao restante do pedido.');
+        if (pedido.statusPedido === 'Cancelado') throw new Error('Pedidos cancelados não podem receber novos pagamentos.');
+        const historico = garantirHistorico(pedido);
+        const registro = { id: Math.max(0, ...historico.map(r => r.id)) + 1, data, valor, pagamento: String(dados.pagamento || 'Não informado'), tipo: 'Recebimento', observacoes: String(dados.observacoes || '') };
+        historico.push(registro); sincronizarPagamento(pedido); return registro;
+      },
+      estornar(pedido, registroId, data) {
+        const historico = garantirHistorico(pedido);
+        const registro = historico.find(r => r.id === registroId);
+        if (!dataRecebimentoValida(data) || !registro || registro.valor <= 0 || historico.some(r => r.referencia === registroId) || valorPagoVenda(pedido) < registro.valor) throw new Error('Este recebimento não pode ser estornado novamente.');
+        historico.push({ id: Math.max(0, ...historico.map(r => r.id)) + 1, data: dataParaISO(data), valor: -registro.valor, pagamento: registro.pagamento, tipo: 'Estorno', referencia: registroId, observacoes: `Estorno do registro #${registroId}` });
+        sincronizarPagamento(pedido);
+      }
+    };
+    function prepararRecebimento(index) {
+      openTabCaixa('recebimentos');
+      document.getElementById('rec-pedido').value = entradas[index]?.id || '';
+      document.getElementById('rec-data').value = dataLocalISO();
+      document.getElementById('rec-valor').value = '';
+      document.getElementById('rec-observacoes').value = '';
+      atualizarResumoRecebimento();
+      document.getElementById('form-recebimento').scrollIntoView({ behavior: 'smooth' });
+    }
+    function atualizarResumoRecebimento() {
+      const pedido = entradas.find(p => p.id === document.getElementById('rec-pedido').value);
+      document.getElementById('rec-resumo').textContent = pedido ? `Total: ${formatCurrency(pedido.total)} · Recebido: ${formatCurrency(valorPagoVenda(pedido))} · Restante: ${formatCurrency(restanteVenda(pedido))}` : 'Selecione o pedido para registrar um pagamento.';
+    }
+    document.getElementById('form-recebimento').addEventListener('submit', event => {
+      event.preventDefault();
+      const pedido = entradas.find(p => p.id === document.getElementById('rec-pedido').value);
+      if (!pedido) { alert('Selecione um pedido.'); return; }
+      try {
+        ServicoRecebimentos.registrar(pedido, { valor: document.getElementById('rec-valor').value, data: document.getElementById('rec-data').value, pagamento: document.getElementById('rec-pagamento').value, observacoes: document.getElementById('rec-observacoes').value.trim() });
+        document.getElementById('rec-valor').value = ''; document.getElementById('rec-observacoes').value = '';
+        marcarAlteracao(); renderEntradas(); atualizarResumo();
+      } catch (erro) { alert(erro.message); }
+    });
+    function estornarRecebimento(index, registroId) {
+      if (!confirm('Registrar um estorno deste recebimento com a data de hoje? O registro original continuará no histórico.')) return;
+      try { ServicoRecebimentos.estornar(entradas[index], registroId, dataLocalISO()); marcarAlteracao(); renderEntradas(); atualizarResumo(); }
+      catch (erro) { alert(erro.message); }
+    }
+    function recebimentosNoPeriodo(inicio, fim) {
+      return arredonda(entradas.reduce((soma, pedido) => soma + garantirHistorico(pedido).filter(r => r.data ? (!inicio || r.data >= inicio) && (!fim || r.data <= fim) : !inicio && !fim).reduce((s, r) => s + r.valor, 0), 0));
+    }
+
+    function itensDaVenda(venda) {
+      return Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [{ produto: venda.produto, qtd: Number(venda.qtd) || 1, unit: Number(venda.unit) || 0 }];
+    }
+
+    function itemVendaPendente() {
+      const produto = document.getElementById('ent-produto').value;
+      const qtd = Number(document.getElementById('ent-qtd').value);
+      const campoValor = document.getElementById('ent-valor').value;
+      const unit = Number(campoValor);
+      if (!produto || !Number.isInteger(qtd) || qtd < 1 || campoValor === '' || !Number.isFinite(unit) || unit < 0) return null;
+      return { produto, qtd, unit: arredonda(unit) };
+    }
+
+    function totalFormularioVenda() {
+      const pendente = itemVendaPendente();
+      return arredonda([...itensVendaAtual, ...(pendente ? [pendente] : [])].reduce((soma, item) => soma + arredonda(item.qtd * item.unit), 0));
+    }
+
+    function adicionarItemVenda() {
+      const item = itemVendaPendente();
+      if (!item) { alert('Selecione um produto e informe uma quantidade inteira e um preço válido.'); return; }
+      itensVendaAtual.push(item);
+      document.getElementById('ent-produto').value = '';
+      document.getElementById('ent-qtd').value = '1';
+      document.getElementById('ent-valor').value = '';
+      renderItensVenda();
+    }
+
+    function alterarItemVenda(index, campo, valor) {
+      const numero = Number(valor);
+      if (!Number.isFinite(numero) || (campo === 'qtd' ? !Number.isInteger(numero) || numero < 1 : numero < 0)) {
+        alert('Informe uma quantidade inteira maior que zero ou um preço válido.'); renderItensVenda(); return;
+      }
+      itensVendaAtual[index][campo] = campo === 'unit' ? arredonda(numero) : numero;
+      renderItensVenda();
+    }
+
+    function removerItemVenda(index) {
+      itensVendaAtual.splice(index, 1);
+      renderItensVenda();
+    }
+
+    function renderItensVenda() {
+      document.getElementById('ent-itens').innerHTML = itensVendaAtual.map((item, index) => `
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_90px_140px_auto] gap-2 items-center bg-[var(--card)] rounded p-3">
+          <span class="font-semibold">${escaparHTML(item.produto)}</span>
+          <label class="text-xs">Quantidade<input aria-label="Quantidade de ${escaparHTML(item.produto)}" type="number" min="1" step="1" value="${item.qtd}" onchange="alterarItemVenda(${index}, 'qtd', this.value)" class="w-full border border-[var(--border)] bg-[var(--background)] rounded p-2"></label>
+          <label class="text-xs">Preço unitário (R$)<input aria-label="Preço de ${escaparHTML(item.produto)}" type="number" min="0" step="0.01" value="${item.unit.toFixed(2)}" onchange="alterarItemVenda(${index}, 'unit', this.value)" class="w-full border border-[var(--border)] bg-[var(--background)] rounded p-2"></label>
+          <button type="button" onclick="removerItemVenda(${index})" class="text-red-500 font-semibold">Remover</button>
+        </div>`).join('') || '<p class="text-sm text-[var(--muted-foreground)]">Nenhum produto adicionado ainda.</p>';
+      atualizarCampoPagamento();
+    }
+
+    function atualizarCampoPagamento() {
+      const situacao = document.getElementById('ent-situacao-pagamento').value;
+      const valorPagoEl = document.getElementById('ent-valor-pago');
+      const total = totalFormularioVenda();
+      if (indiceEntradaEmEdicao !== null) {
+        const recebido = valorPagoVenda(entradas[indiceEntradaEmEdicao]);
+        valorPagoEl.value = recebido.toFixed(2); valorPagoEl.disabled = true;
+        document.getElementById('ent-situacao-pagamento').disabled = true;
+        document.getElementById('ent-pagamento').disabled = true;
+        document.getElementById('area-data-recebimento-inicial').classList.add('hidden');
+        document.getElementById('ent-resumo-pagamento').textContent = `Recebido: ${formatCurrency(recebido)} · Restante: ${formatCurrency(Math.max(0,total-recebido))}. Novos pagamentos e estornos são registrados na aba Caixa.`;
+        document.getElementById('ent-total-venda').textContent = formatCurrency(total);
+        return;
+      }
+      document.getElementById('ent-situacao-pagamento').disabled = false;
+      document.getElementById('ent-pagamento').disabled = false;
+      document.getElementById('area-data-recebimento-inicial').classList.toggle('hidden', situacao === 'Pendente');
+      document.getElementById('ent-total-venda').textContent = formatCurrency(total);
+      if (situacao === 'Pago') valorPagoEl.value = arredonda(total).toFixed(2);
+      if (situacao === 'Pendente') valorPagoEl.value = '0';
+      valorPagoEl.disabled = situacao !== 'Parcial';
+      const recebido = situacao === 'Pago' ? total : (situacao === 'Parcial' ? Number(valorPagoEl.value) || 0 : 0);
+      document.getElementById('ent-resumo-pagamento').textContent = `Restante: ${formatCurrency(Math.max(0, total - recebido))}`;
+    }
+
+    ['ent-valor', 'ent-qtd', 'ent-valor-pago'].forEach(id => document.getElementById(id).addEventListener('input', atualizarCampoPagamento));
+    atualizarCampoPagamento();
+    function dataLocalISO(data = new Date()) {
+      const y = data.getFullYear();
+      const m = String(data.getMonth() + 1).padStart(2, '0');
+      const d = String(data.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDate(dateStr) {
+      const iso = dataParaISO(dateStr);
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function dataParaISO(valor) {
+      if (valor instanceof Date && !Number.isNaN(valor.getTime())) return dataLocalISO(valor);
+      if (typeof valor === 'number' && Number.isFinite(valor)) {
+        const data = new Date(Date.UTC(1899, 11, 30) + Math.floor(valor) * 86400000);
+        return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}-${String(data.getUTCDate()).padStart(2, '0')}`;
+      }
+      const texto = String(valor ?? '').trim();
+      if (!texto) return '';
+      const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+      const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (br) return `${br[3]}-${br[2].padStart(2, '0')}-${br[1].padStart(2, '0')}`;
+      return '';
+    }
+
+    function escaparHTML(valor) {
+      return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function calcularMargem(custo, precoVenda) {
+      if (!Number.isFinite(custo) || !Number.isFinite(precoVenda) || precoVenda <= 0) return null;
+      return ((precoVenda - custo) / precoVenda) * 100;
+    }
+
+    function calcularPrecoPorMargem(custo, margem) {
+      if (!Number.isFinite(custo) || !Number.isFinite(margem) || custo < 0 || margem >= 100) return null;
+      return custo / (1 - (margem / 100));
+    }
+
+    function normalizarRendimento(valor) {
+      const numeroDireto = Number(valor);
+      if (Number.isFinite(numeroDireto) && numeroDireto > 0) return numeroDireto;
+      const encontrado = String(valor ?? '').replace(',', '.').match(/\d+(?:\.\d+)?/);
+      const numeroExtraido = encontrado ? Number(encontrado[0]) : 1;
+      return Number.isFinite(numeroExtraido) && numeroExtraido > 0 ? numeroExtraido : 1;
+    }
+
+    function calcularCustoPorUnidade(custoTotal, rendimento) {
+      return (Number(custoTotal) || 0) / normalizarRendimento(rendimento);
+    }
+
+    function normalizarReceita(receita, baseInsumos = insumos) {
+      const precoInformado = receita && receita.sellingPrice !== null && receita.sellingPrice !== '';
+      const precoNormalizado = precoInformado ? Number(receita.sellingPrice) : null;
+      return {
+        ...receita,
+        ingredientes: Array.isArray(receita?.ingredientes) ? receita.ingredientes.map(ingrediente => {
+          const idInformado = Number(ingrediente?.insumoId);
+          const insumo = baseInsumos.find(item => item.id === idInformado) || baseInsumos.find(item =>
+            item.nome.toLowerCase() === String(ingrediente?.nome || '').toLowerCase() && item.medida === ingrediente?.medida
+          );
+          return { ...ingrediente, insumoId: insumo?.id || null };
+        }) : [],
+        rendimento: normalizarRendimento(receita?.rendimento),
+        custoTotal: Number(receita?.custoTotal) || 0,
+        sellingPrice: Number.isFinite(precoNormalizado) && precoNormalizado >= 0 ? precoNormalizado : null
+      };
+    }
+
+    function obterCustoReceitaAtual() {
+      return receitaAtualIngredientes.reduce((total, ingrediente) => total + (Number(ingrediente.custo) || 0), 0);
+    }
+
+    function atualizarResumoPrecificacao(custoTotal, rendimento, precoVenda) {
+      const custoUnitario = calcularCustoPorUnidade(custoTotal, rendimento);
+      document.getElementById('custo-precificacao-atual').textContent = formatCurrency(custoUnitario);
+      document.getElementById('resumo-custo-total').textContent = formatCurrency(custoTotal);
+
+      const precoValido = Number.isFinite(precoVenda) && precoVenda >= 0;
+      const valorTotal = precoValido ? precoVenda * rendimento : null;
+      const lucroTotal = valorTotal === null ? null : valorTotal - custoTotal;
+      document.getElementById('resumo-preco-unitario').textContent = precoValido ? formatCurrency(precoVenda) : '—';
+      document.getElementById('resumo-venda-total').textContent = valorTotal === null ? '—' : formatCurrency(valorTotal);
+      const lucroEl = document.getElementById('resumo-lucro-total');
+      lucroEl.textContent = lucroTotal === null ? '—' : formatCurrency(lucroTotal);
+      lucroEl.className = lucroTotal === null ? 'text-gray-500' : (lucroTotal < 0 ? 'text-red-600' : 'text-green-600');
+    }
+
+    function exibirErroPrecificacao(mensagem = '') {
+      const erro = document.getElementById('erro-precificacao');
+      erro.textContent = mensagem;
+      erro.classList.toggle('hidden', !mensagem);
+    }
+
+    function atualizarPrecificacaoEditor(origem = 'preco') {
+      const precoEl = document.getElementById('rec-preco-venda');
+      const margemEl = document.getElementById('rec-margem');
+      const custoTotal = obterCustoReceitaAtual();
+      const rendimento = normalizarRendimento(document.getElementById('rec-rendimento').value);
+      const custo = calcularCustoPorUnidade(custoTotal, rendimento);
+      exibirErroPrecificacao();
+
+      if (origem === 'margem') {
+        if (margemEl.value.trim() === '') {
+          precoEl.value = '';
+          atualizarResumoPrecificacao(custoTotal, rendimento, null);
+          return;
+        }
+
+        const margem = Number(margemEl.value);
+        if (!Number.isFinite(margem) || margem >= 100) {
+          precoEl.value = '';
+          exibirErroPrecificacao('A margem precisa ser um número menor que 100%.');
+          atualizarResumoPrecificacao(custoTotal, rendimento, null);
+          return;
+        }
+
+        const precoCalculado = calcularPrecoPorMargem(custo, margem);
+        precoEl.value = precoCalculado === null ? '' : arredonda(precoCalculado).toFixed(2);
+        atualizarResumoPrecificacao(custoTotal, rendimento, precoCalculado);
+        return;
+      }
+
+      if (precoEl.value.trim() === '') {
+        margemEl.value = '';
+        atualizarResumoPrecificacao(custoTotal, rendimento, null);
+        return;
+      }
+
+      const precoVenda = Number(precoEl.value);
+      if (!Number.isFinite(precoVenda) || precoVenda < 0) {
+        margemEl.value = '';
+        exibirErroPrecificacao('Informe um preço de venda válido.');
+        atualizarResumoPrecificacao(custoTotal, rendimento, null);
+        return;
+      }
+
+      const margemCalculada = calcularMargem(custo, precoVenda);
+      margemEl.value = margemCalculada === null ? '' : margemCalculada.toFixed(2);
+      if (precoVenda > 0 && precoVenda < custo) {
+        exibirErroPrecificacao('Atenção: este preço gera margem negativa.');
+      }
+      atualizarResumoPrecificacao(custoTotal, rendimento, precoVenda);
+    }
+
+    document.getElementById('rec-preco-venda').addEventListener('input', () => atualizarPrecificacaoEditor('preco'));
+    document.getElementById('rec-margem').addEventListener('input', () => atualizarPrecificacaoEditor('margem'));
+    document.getElementById('rec-rendimento').addEventListener('input', () => atualizarPrecificacaoEditor('preco'));
+    document.getElementById('rec-rendimento').addEventListener('blur', function() {
+      if (!Number.isFinite(Number(this.value)) || Number(this.value) <= 0) this.value = '1';
+      atualizarPrecificacaoEditor('preco');
+    });
+    document.getElementById('rec-preco-venda').addEventListener('blur', function() {
+      if (this.value !== '' && Number.isFinite(Number(this.value))) this.value = arredonda(Number(this.value)).toFixed(2);
+    });
+    document.getElementById('rec-margem').addEventListener('blur', function() {
+      if (this.value !== '' && Number.isFinite(Number(this.value))) this.value = Number(this.value).toFixed(2);
+    });
+
+    // ========== ATUALIZAR DROPDOWN DE PRODUTOS ==========
+    function atualizarDropdownProdutos() {
+      const select = document.getElementById('ent-produto');
+      select.innerHTML = '<option value="">Selecione um Produto...</option>';
+
+      const grupo = document.createElement('optgroup');
+      grupo.label = 'Cardápio';
+      const adicionarOpcao = (nome, preco) => {
+        const opt = document.createElement('option');
+        opt.value = nome;
+        opt.dataset.sellingPrice = Number.isFinite(preco) ? preco : '';
+        opt.textContent = Number.isFinite(preco) ? `${nome} (${formatCurrency(preco)})` : nome;
+        grupo.appendChild(opt);
+      };
+      receitas.forEach(receita => adicionarOpcao(receita.nome, receita.sellingPrice));
+      produtos.forEach(produto => adicionarOpcao(produto.nome, produto.preco));
+      select.appendChild(grupo);
+    }
+
+    function renderCardapio() {
+      const container = document.getElementById('lista-cardapio');
+      container.replaceChildren();
+      if (produtos.length === 0 && receitas.length === 0) {
+        const vazio = document.createElement('p');
+        vazio.className = 'text-sm text-gray-400 md:col-span-2';
+        vazio.textContent = 'Nenhum produto no cardápio. Use o formulário acima para adicionar.';
+        container.appendChild(vazio);
+        return;
+      }
+      const adicionarLinha = (item, tipo, identificador) => {
+        const linha = document.createElement('div');
+        linha.className = 'grid grid-cols-1 sm:grid-cols-[1fr_130px_auto_auto] gap-2 items-end border border-[var(--border)] rounded-lg p-3';
+
+        const blocoNome = document.createElement('label');
+        blocoNome.className = 'text-xs font-medium';
+        blocoNome.textContent = tipo === 'receita' ? 'Produto • Ficha técnica' : 'Produto simples';
+        const nome = document.createElement('input');
+        nome.id = `card-${tipo}-nome-${identificador}`;
+        nome.className = 'block w-full mt-1 bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-sm';
+        nome.value = item.nome;
+        blocoNome.appendChild(nome);
+
+        const blocoPreco = document.createElement('label');
+        blocoPreco.className = 'text-xs font-medium';
+        blocoPreco.textContent = 'Preço (R$)';
+        const preco = document.createElement('input');
+        preco.id = `card-${tipo}-preco-${identificador}`;
+        preco.type = 'number';
+        preco.min = '0';
+        preco.step = '0.01';
+        preco.placeholder = 'Sem preço';
+        preco.className = 'block w-full mt-1 bg-[var(--background)] border border-[var(--border)] rounded px-3 py-2 text-sm';
+        const valor = tipo === 'receita' ? item.sellingPrice : item.preco;
+        preco.value = Number.isFinite(valor) ? valor.toFixed(2) : '';
+        blocoPreco.appendChild(preco);
+
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.className = 'bg-[var(--primary)] text-white px-3 py-2 rounded text-sm font-bold hover:opacity-90';
+        botao.textContent = 'Salvar';
+        botao.addEventListener('click', () => tipo === 'receita' ? editarReceitaNoCardapio(identificador) : editarProduto(identificador));
+
+        const excluir = document.createElement('button');
+        excluir.type = 'button';
+        excluir.className = 'border border-red-300 text-red-600 px-3 py-2 rounded text-sm font-bold hover:bg-red-50';
+        excluir.textContent = 'Excluir';
+        excluir.addEventListener('click', () => tipo === 'receita' ? excluirReceitaNoCardapio(identificador) : excluirProduto(identificador));
+
+        linha.append(blocoNome, blocoPreco, botao, excluir);
+        container.appendChild(linha);
+      };
+      receitas.forEach((receita, index) => adicionarLinha(receita, 'receita', index));
+      produtos.forEach(produto => adicionarLinha(produto, 'produto', produto.id));
+    }
+
+    document.getElementById('form-novo-produto').addEventListener('submit', event => {
+      event.preventDefault();
+      const nomeEl = document.getElementById('novo-produto-nome');
+      const precoEl = document.getElementById('novo-produto-preco');
+      const nome = nomeEl.value.trim();
+      const precoTexto = precoEl.value.trim();
+      const preco = precoTexto === '' ? null : Number(precoTexto);
+      if (!nome || (preco !== null && (!Number.isFinite(preco) || preco < 0))) {
+        alert('Informe um nome e um preço válido, ou deixe o preço vazio.');
+        return;
+      }
+      if (nomeExisteNoCardapio(nome)) {
+        alert('Já existe um produto com esse nome.');
+        return;
+      }
+      produtos.push({ id: proximoIdProduto(), nome, preco: preco === null ? null : arredonda(preco) });
+      nomeEl.value = '';
+      precoEl.value = '';
+      marcarAlteracao();
+      atualizarDropdownProdutos();
+      renderCardapio();
+      nomeEl.focus();
+    });
+
+    function editarProduto(id) {
+      const produto = produtos.find(item => item.id === id);
+      if (!produto) return;
+      const nome = document.getElementById(`card-produto-nome-${id}`).value.trim();
+      const precoTexto = document.getElementById(`card-produto-preco-${id}`).value.trim();
+      const preco = precoTexto === '' ? null : Number(precoTexto);
+      if (!nome || (preco !== null && (!Number.isFinite(preco) || preco < 0))) {
+        alert('Informe um nome e um preço válido, ou deixe o preço vazio.');
+        return;
+      }
+      if (nomeExisteNoCardapio(nome, produto)) {
+        alert('Já existe um produto com esse nome.');
+        return;
+      }
+      produto.nome = nome;
+      produto.preco = preco === null ? null : arredonda(preco);
+      marcarAlteracao();
+      atualizarDropdownProdutos();
+      renderCardapio();
+    }
+
+    function editarReceitaNoCardapio(index) {
+      const receita = receitas[index];
+      if (!receita) return;
+      const nome = document.getElementById(`card-receita-nome-${index}`).value.trim();
+      const precoTexto = document.getElementById(`card-receita-preco-${index}`).value.trim();
+      const preco = precoTexto === '' ? null : Number(precoTexto);
+      if (!nome || (preco !== null && (!Number.isFinite(preco) || preco < 0))) {
+        alert('Informe um nome e um preço válido, ou deixe o preço vazio.');
+        return;
+      }
+      if (nomeExisteNoCardapio(nome, null, receita)) {
+        alert('Já existe um produto com esse nome.');
+        return;
+      }
+      receita.nome = nome;
+      receita.sellingPrice = preco === null ? null : arredonda(preco);
+      if (indiceReceitaEmEdicao === index) {
+        document.getElementById('rec-nome').value = receita.nome;
+        document.getElementById('rec-preco-venda').value = Number.isFinite(receita.sellingPrice) ? receita.sellingPrice.toFixed(2) : '';
+        atualizarPrecificacaoEditor('preco');
+      }
+      marcarAlteracao();
+      renderReceitasSalvas();
+      atualizarDropdownProdutos();
+      renderCardapio();
+    }
+
+    function excluirReceitaNoCardapio(index) {
+      const receita = receitas[index];
+      if (!receita) return;
+      if (!confirm(`Excluir "${receita.nome}" do cardápio e apagar sua ficha técnica? As vendas já registradas serão mantidas.`)) return;
+      cancelarEdicaoReceita();
+      receitas.splice(index, 1);
+      marcarAlteracao();
+      renderReceitasSalvas();
+      atualizarDropdownProdutos();
+      renderCardapio();
+    }
+
+    function excluirProduto(id) {
+      const index = produtos.findIndex(produto => produto.id === id);
+      if (index < 0) return;
+      if (!confirm(`Excluir "${produtos[index].nome}" do cardápio? As vendas já registradas serão mantidas.`)) return;
+      produtos.splice(index, 1);
+      marcarAlteracao();
+      atualizarDropdownProdutos();
+      renderCardapio();
+    }
+
+    document.getElementById('ent-produto').addEventListener('change', function() {
+      const opcao = this.options[this.selectedIndex];
+      if (opcao && opcao.dataset.sellingPrice !== undefined && opcao.dataset.sellingPrice !== '') {
+        document.getElementById('ent-valor').value = arredonda(Number(opcao.dataset.sellingPrice)).toFixed(2);
+      } else {
+        document.getElementById('ent-valor').value = '';
+      }
+      atualizarCampoPagamento();
+    });
+
+    // Serviços de pedidos e clientes: regras independentes da interface e do XLSX.
+    const ServicoPedidos = {
+      aberto(pedido) { return !['Entregue', 'Cancelado', 'Orçamento'].includes(pedido.statusPedido || 'Entregue'); },
+      atendeFiltro(pedido, filtro, hoje = dataLocalISO()) {
+        if (filtro === 'hoje') return this.aberto(pedido) && pedido.dataEntrega === hoje;
+        if (filtro === 'atrasados') return this.aberto(pedido) && !!pedido.dataEntrega && pedido.dataEntrega < hoje;
+        return !filtro || (pedido.statusPedido || 'Entregue') === filtro;
+      }
+    };
+    const ServicoClientes = {
+      telefone(valor) { return String(valor || '').replace(/\D/g, ''); },
+      chaveNome(valor) { return String(valor || '').trim().toLocaleLowerCase('pt-BR'); },
+      localizar(lista, nome, telefone) {
+        const numero = this.telefone(telefone);
+        if (numero) return lista.find(c => this.telefone(c.whatsapp) === numero);
+        return lista.find(c => !this.telefone(c.whatsapp) && this.chaveNome(c.nome) === this.chaveNome(nome));
+      },
+      cadastrar(lista, dados) {
+        const nome = String(dados.nome || '').trim();
+        if (!nome) return null;
+        const existente = this.localizar(lista, nome, dados.whatsapp);
+        if (existente) return existente;
+        const cliente = { id: Math.max(0, ...lista.map(c => Number(c.id) || 0)) + 1, nome, whatsapp: String(dados.whatsapp || '').trim(), endereco: String(dados.endereco || '').trim() };
+        lista.push(cliente);
+        return cliente;
+      },
+      migrar(lista, pedidos) {
+        pedidos.forEach(pedido => {
+          let cliente = lista.find(c => c.id === Number(pedido.clienteId));
+          if (!cliente) cliente = this.cadastrar(lista, { nome: pedido.cliente, whatsapp: pedido.whatsapp, endereco: pedido.endereco });
+          pedido.clienteId = cliente?.id || null;
+        });
+      }
+    };
+
+    function atualizarSeletorClientes() {
+      const select = document.getElementById('ent-cliente-id');
+      const atual = select.value;
+      select.innerHTML = '<option value="">Novo cliente / venda avulsa</option>' + [...clientes].sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => `<option value="${c.id}">${escaparHTML(c.nome)}${c.whatsapp ? ' — ' + escaparHTML(c.whatsapp) : ''}</option>`).join('');
+      select.value = clientes.some(c => String(c.id) === atual) ? atual : '';
+    }
+    function selecionarClientePedido() {
+      const cliente = clientes.find(c => c.id === Number(document.getElementById('ent-cliente-id').value));
+      document.getElementById('ent-cliente').value = cliente?.nome || '';
+      document.getElementById('ent-whatsapp').value = cliente?.whatsapp || '';
+      document.getElementById('ent-endereco').value = cliente?.endereco || '';
+    }
+    function renderClientes() {
+      const busca = document.getElementById('cliente-busca').value.toLocaleLowerCase('pt-BR');
+      document.getElementById('lista-clientes').innerHTML = clientes.filter(c => `${c.nome} ${c.whatsapp}`.toLocaleLowerCase('pt-BR').includes(busca)).map(c => `<tr class="border-b border-[var(--border)]"><td class="p-2 font-semibold">${escaparHTML(c.nome)}</td><td class="p-2">${escaparHTML(c.whatsapp || '—')}</td><td class="p-2">${escaparHTML(c.endereco || '—')}</td><td class="p-2 whitespace-nowrap"><button onclick="editarCliente(${c.id})" class="text-blue-600 mr-3">Editar</button><button onclick="excluirCliente(${c.id})" class="text-red-500">Excluir</button></td></tr>`).join('') || '<tr><td colspan="4" class="p-4 text-center">Nenhum cliente encontrado.</td></tr>';
+      atualizarSeletorClientes();
+    }
+    function editarCliente(id) {
+      const c = clientes.find(c => c.id === id); if (!c) return;
+      clienteEmEdicao = id;
+      document.getElementById('cli-nome').value = c.nome;
+      document.getElementById('cli-whatsapp').value = c.whatsapp;
+      document.getElementById('cli-endereco').value = c.endereco;
+      document.getElementById('titulo-cliente').textContent = 'Editar Cliente';
+    }
+    function cancelarEdicaoCliente() {
+      clienteEmEdicao = null;
+      document.getElementById('form-clientes').reset();
+      document.getElementById('titulo-cliente').textContent = 'Cadastrar Cliente';
+    }
+    function excluirCliente(id) {
+      if (!confirm('Excluir este cliente do cadastro? Os pedidos anteriores serão preservados.')) return;
+      clientes = clientes.filter(c => c.id !== id);
+      entradas.forEach(p => { if (p.clienteId === id) p.clienteId = null; });
+      cancelarEdicaoCliente(); marcarAlteracao(); renderClientes();
+    }
+    document.getElementById('form-clientes').addEventListener('submit', event => {
+      event.preventDefault();
+      const dados = { nome: document.getElementById('cli-nome').value.trim(), whatsapp: document.getElementById('cli-whatsapp').value.trim(), endereco: document.getElementById('cli-endereco').value.trim() };
+      if (!dados.nome) return;
+      const duplicado = ServicoClientes.localizar(clientes, dados.nome, dados.whatsapp);
+      if (duplicado && duplicado.id !== clienteEmEdicao) { alert('Este cliente já está cadastrado. Use o botão Editar.'); return; }
+      if (clienteEmEdicao !== null) Object.assign(clientes.find(c => c.id === clienteEmEdicao), dados);
+      else ServicoClientes.cadastrar(clientes, dados);
+      marcarAlteracao(); cancelarEdicaoCliente(); renderClientes();
+    });
+    function filtrarPedidos(filtro) {
+      document.getElementById('pedido-filtro').value = filtro;
+      renderEntradas();
+    }
+    function renderPainelPedidos() {
+      const cards = [ ['hoje', 'Entregas de hoje'], ['Em produção', 'Em produção'], ['Pronto', 'Prontos'], ['atrasados', 'Atrasados'] ];
+      document.getElementById('painel-pedidos').innerHTML = cards.map(([filtro, titulo]) => `<button type="button" onclick="filtrarPedidos('${filtro}')" class="text-left bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm"><span class="block text-sm">${titulo}</span><strong class="block text-2xl text-[var(--primary)]">${entradas.filter(p => ServicoPedidos.atendeFiltro(p, filtro)).length}</strong></button>`).join('');
+    }
+    function renderCaixa() {
+      entradas.forEach(garantirHistorico);
+      const validos = entradas;
+      const recebido = arredonda(validos.reduce((s,p) => s + valorPagoVenda(p), 0));
+      const despesas = arredonda(saidas.reduce((s,p) => s + p.valor, 0));
+      document.getElementById('painel-caixa').innerHTML = [['Recebido', recebido], ['Despesas', despesas], ['Saldo em caixa', arredonda(recebido-despesas)]].map(([nome, valor]) => `<div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5"><p>${nome}</p><strong class="text-2xl">${formatCurrency(valor)}</strong></div>`).join('');
+      document.getElementById('lista-recebimentos').innerHTML = entradas.map((p,index) => ({p,index})).map(({p,index}) => `<tr class="border-b border-[var(--border)]"><td class="p-2">${formatDate(p.data)} — ${escaparHTML(p.cliente || 'Venda avulsa')}<br><span class="text-xs">${escaparHTML(p.produto)}</span></td><td class="p-2 text-green-600">${formatCurrency(valorPagoVenda(p))}</td><td class="p-2">${p.statusPedido === 'Cancelado' ? 'Cancelado' : formatCurrency(restanteVenda(p))}</td><td class="p-2">${escaparHTML(p.pagamento || '—')}</td><td class="p-2"><button onclick="prepararRecebimento(${index})" class="text-blue-600 font-semibold">Pagamento / histórico</button></td></tr>`).join('') || '<tr><td colspan="5" class="p-4 text-center">Nenhum pedido registrado.</td></tr>';
+      const select = document.getElementById('rec-pedido'); const selecionado = select.value;
+      select.innerHTML = '<option value="">Selecione um pedido...</option>' + entradas.filter(p => p.statusPedido !== 'Cancelado' && restanteVenda(p) > 0).map(p => `<option value="${escaparHTML(p.id)}">${escaparHTML(p.cliente || 'Venda avulsa')} — ${escaparHTML(p.produto)} — ${formatCurrency(restanteVenda(p))}</option>`).join('');
+      select.value = entradas.some(p => p.id === selecionado && p.statusPedido !== 'Cancelado' && restanteVenda(p) > 0) ? selecionado : '';
+      if (!document.getElementById('rec-data').value) document.getElementById('rec-data').value = dataLocalISO();
+      atualizarResumoRecebimento();
+      document.getElementById('historico-recebimentos').innerHTML = entradas.flatMap((p,index) => p.recebimentos.map(r => `<tr class="border-b border-[var(--border)]"><td class="p-2 whitespace-nowrap">${r.data ? formatDate(r.data) : 'Não informada'}</td><td class="p-2">${escaparHTML(p.cliente || 'Venda avulsa')}<br><span class="text-xs">${escaparHTML(p.produto)}${p.statusPedido === 'Cancelado' ? ' (Cancelado)' : ''}</span></td><td class="p-2">${escaparHTML(r.tipo)}</td><td class="p-2 ${r.valor < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(r.valor)}</td><td class="p-2">${escaparHTML(r.pagamento)}</td><td class="p-2">${escaparHTML(r.observacoes || '—')}</td><td class="p-2">${r.valor > 0 && !p.recebimentos.some(outro => outro.referencia === r.id) ? `<button onclick="estornarRecebimento(${index}, ${r.id})" class="text-red-600 font-semibold">Estornar</button>` : '—'}</td></tr>`)).join('') || '<tr><td colspan="7" class="p-4 text-center">Nenhum recebimento registrado.</td></tr>';
+
+    }
+
+    // ========== ÁREA DE CAIXA (ENTRADAS & SAÍDAS) ==========
+    function renderEntradas() {
+      const tbody = document.getElementById('lista-entradas');
+      tbody.innerHTML = '';
+      renderPainelPedidos(); renderCaixa(); renderClientes();
+      const filtro = document.getElementById('pedido-filtro').value;
+      const busca = document.getElementById('pedido-busca').value.toLocaleLowerCase('pt-BR');
+      entradas.forEach((item, index) => {
+        if (!ServicoPedidos.atendeFiltro(item, filtro) || !`${item.cliente || ''} ${item.whatsapp || ''} ${item.produto || ''}`.toLocaleLowerCase('pt-BR').includes(busca)) return;
+        const status = statusPedidos.includes(item.statusPedido) ? item.statusPedido : 'Entregue';
+        const recebido = valorPagoVenda(item);
+        const restante = restanteVenda(item);
+        const situacao = restante === 0 ? 'Pago' : (recebido > 0 ? 'Parcial' : 'Pendente');
+        tbody.innerHTML += `
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-gray-50">
+            <td class="py-2 pr-4">${formatDate(item.data)}</td>
+            <td class="py-2 pr-4 font-semibold">${escaparHTML(item.cliente || '—')}</td>
+            <td class="py-2 pr-4">${escaparHTML(item.whatsapp || '—')}</td>
+            <td class="py-2 pr-4 font-semibold">${itensDaVenda(item).map(i => `${i.qtd} × ${escaparHTML(i.produto)} (${formatCurrency(i.unit)}/un)`).join("<br>")}</td>
+            <td class="py-2 pr-4">
+              <select onchange="atualizarStatusEntrada(${index}, this.value)" class="bg-white border border-[var(--border)] rounded px-2 py-1 text-xs">
+                ${statusPedidos.map(opcao => `<option${opcao === status ? ' selected' : ''}>${opcao}</option>`).join('')}
+              </select>
+            </td>
+            <td class="py-2 pr-4">${item.qtd}</td>
+            <td class="py-2 pr-4 font-medium text-green-600">${formatCurrency(item.total)}</td>
+            <td class="py-2 pr-4 text-green-700">${formatCurrency(recebido)}</td>
+            <td class="py-2 pr-4 ${restante > 0 ? 'text-amber-600 font-semibold' : 'text-gray-400'}">${formatCurrency(restante)}</td>
+            <td class="py-2 pr-4 font-semibold ${situacao === 'Pago' ? 'text-green-700' : (situacao === 'Parcial' ? 'text-amber-600' : 'text-red-600')}">${situacao}</td>
+            <td class="py-2 pr-4">${item.dataEntrega ? formatDate(item.dataEntrega) : '—'}</td>
+            <td class="py-2 pr-4">${escaparHTML(item.pagamento)}</td>
+            <td class="py-2 pr-4 max-w-xs truncate" title="${escaparHTML(item.observacoes || '')}">${escaparHTML(item.observacoes || '—')}</td>
+            <td class="py-2">
+              <button onclick="editarEntrada(${index})" class="text-blue-600 hover:underline text-xs font-bold mr-2">Editar</button>
+              <button onclick="removerEntrada(${index})" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>
+            </td>
+          </tr>`;
+      });
+    }
+
+    function atualizarStatusEntrada(index, status) {
+      if (!entradas[index] || !statusPedidos.includes(status)) return;
+      entradas[index].statusPedido = status;
+      marcarAlteracao();
+      atualizarResumo();
+      renderEntradas();
+    }
+
+    document.getElementById('ent-whatsapp').addEventListener('input', function() {
+      const numeros = this.value.replace(/\D/g, '').slice(0, 11);
+      if (numeros.length <= 2) this.value = numeros;
+      else if (numeros.length <= 6) this.value = `(${numeros.slice(0, 2)}) ${numeros.slice(2)}`;
+      else if (numeros.length <= 10) this.value = `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
+      else this.value = `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+    });
+
+    function renderSaidas() {
+      renderCaixa();
+      const tbody = document.getElementById('lista-saidas');
+      tbody.innerHTML = '';
+      saidas.forEach((item, index) => {
+        tbody.innerHTML += `
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-gray-50">
+            <td class="py-2 pr-4">${formatDate(item.data)}</td>
+            <td class="py-2 pr-4">${escaparHTML(item.categoria)}</td>
+            <td class="py-2 pr-4">${escaparHTML(item.descricao)}</td>
+            <td class="py-2 pr-4 font-medium text-red-500">${formatCurrency(item.valor)}</td>
+            <td class="py-2">${item.compraId
+              ? '<span class="text-xs font-bold text-blue-600" title="Edite na área de compras">Automática</span>'
+              : `<button onclick="removerSaida(${index})" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>`}
+            </td>
+          </tr>`;
+      });
+    }
+
+    document.getElementById('form-entradas').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const pendente = itemVendaPendente();
+      if (document.getElementById('ent-produto').value && !pendente) { alert('Confira a quantidade e o preço do produto selecionado.'); return; }
+      const itens = [...itensVendaAtual, ...(pendente ? [pendente] : [])].map(item => ({ ...item }));
+      if (!itens.length) { alert('Adicione pelo menos um produto à venda.'); return; }
+      const qtd = itens.reduce((soma, item) => soma + item.qtd, 0);
+      const total = arredonda(itens.reduce((soma, item) => soma + arredonda(item.qtd * item.unit), 0));
+      const valUnit = itens.length === 1 ? itens[0].unit : null;
+      const pedidoAnterior = indiceEntradaEmEdicao === null ? null : entradas[indiceEntradaEmEdicao];
+      let situacaoPagamento = document.getElementById('ent-situacao-pagamento').value;
+      let valorPago = situacaoPagamento === 'Pago' ? total : (situacaoPagamento === 'Parcial' ? Number(document.getElementById('ent-valor-pago').value) : 0);
+      if (pedidoAnterior) {
+        valorPago = valorPagoVenda(pedidoAnterior);
+        if (total < valorPago) { alert('O novo total é menor que o valor recebido. Registre o estorno na aba Caixa antes de reduzir o pedido.'); return; }
+        situacaoPagamento = total === valorPago ? 'Pago' : (valorPago > 0 ? 'Parcial' : 'Pendente');
+      }
+      if (!pedidoAnterior && situacaoPagamento === 'Parcial' && (!Number.isFinite(valorPago) || valorPago <= 0 || valorPago >= total)) {
+        alert('Para pagamento parcial, informe um valor recebido maior que zero e menor que o total da venda.');
+        return;
+      }
+      valorPago = arredonda(valorPago);
+      if (!pedidoAnterior && valorPago > 0 && !dataRecebimentoValida(document.getElementById('ent-data-recebimento').value)) { alert('Informe a data do recebimento inicial.'); return; }
+      const clienteSelecionado = clientes.find(c => c.id === Number(document.getElementById('ent-cliente-id').value));
+      const dadosCliente = { nome: document.getElementById('ent-cliente').value.trim(), whatsapp: document.getElementById('ent-whatsapp').value.trim(), endereco: document.getElementById('ent-endereco').value.trim() };
+      const cliente = clienteSelecionado || ServicoClientes.cadastrar(clientes, dadosCliente);
+      const venda = {
+        id: pedidoAnterior?.id || `pedido-${Date.now()}-${++sequenciaPedido}`,
+        recebimentos: pedidoAnterior ? garantirHistorico(pedidoAnterior).map(r => ({...r})) : [],
+        clienteId: cliente?.id || null,
+        endereco: dadosCliente.endereco,
+        data: document.getElementById('ent-data').value,
+        cliente: document.getElementById('ent-cliente').value.trim(),
+        whatsapp: document.getElementById('ent-whatsapp').value.trim(),
+        itens,
+        produto: itens.map(item => item.produto).join(' + '),
+        statusPedido: document.getElementById('ent-status-pedido').value,
+        qtd: qtd,
+        unit: valUnit,
+        total: total,
+        situacaoPagamento,
+        valorPago,
+        valorRestante: arredonda(total - valorPago),
+        pagamento: document.getElementById('ent-pagamento').value,
+        dataEntrega: document.getElementById('ent-data-entrega').value,
+        observacoes: document.getElementById('ent-observacoes').value.trim()
+      };
+      if (!pedidoAnterior && valorPago > 0) venda.recebimentos.push({ id: 1, data: document.getElementById('ent-data-recebimento').value, valor: valorPago, pagamento: venda.pagamento, tipo: 'Recebimento', observacoes: 'Recebimento inicial' });
+      sincronizarPagamento(venda);
+      if (indiceEntradaEmEdicao === null) entradas.push(venda);
+      else entradas[indiceEntradaEmEdicao] = venda;
+      marcarAlteracao();
+      cancelarEdicaoEntrada();
+      renderEntradas();
+    });
+
+    function editarEntrada(index) {
+      const venda = entradas[index];
+      if (!venda) return;
+      indiceEntradaEmEdicao = index;
+      itensVendaAtual = itensDaVenda(venda).map(item => ({ ...item }));
+      document.getElementById('ent-data').value = venda.data || '';
+      atualizarSeletorClientes();
+      document.getElementById('ent-cliente-id').value = venda.clienteId || '';
+      document.getElementById('ent-endereco').value = venda.endereco || '';
+      document.getElementById('ent-cliente').value = venda.cliente || '';
+      document.getElementById('ent-whatsapp').value = venda.whatsapp || '';
+      document.getElementById('ent-produto').value = '';
+      document.getElementById('ent-qtd').value = '1';
+      document.getElementById('ent-valor').value = '';
+      renderItensVenda();
+      document.getElementById('ent-pagamento').value = venda.pagamento || 'Pix';
+      document.getElementById('ent-status-pedido').value = statusPedidos.includes(venda.statusPedido) ? venda.statusPedido : 'Entregue';
+      const valorPago = valorPagoVenda(venda);
+      const restante = restanteVenda(venda);
+      document.getElementById('ent-situacao-pagamento').value = restante === 0 ? 'Pago' : (valorPago > 0 ? 'Parcial' : 'Pendente');
+      document.getElementById('ent-valor-pago').value = valorPago.toFixed(2);
+      document.getElementById('ent-data-entrega').value = venda.dataEntrega || '';
+      document.getElementById('ent-observacoes').value = venda.observacoes || '';
+      document.getElementById('titulo-form-entrada').textContent = 'Editar Pedido';
+      document.getElementById('btn-salvar-entrada').textContent = '✓ Atualizar Pedido';
+      document.getElementById('btn-cancelar-entrada').classList.remove('hidden');
+      atualizarCampoPagamento();
+      document.getElementById('titulo-form-entrada').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoEntrada() {
+      indiceEntradaEmEdicao = null;
+      itensVendaAtual = [];
+      document.getElementById('form-entradas').reset();
+      document.getElementById('ent-data').value = dataLocalISO();
+      document.getElementById('ent-data-recebimento').value = dataLocalISO();
+      atualizarDropdownProdutos();
+      document.getElementById('ent-produto').value = '';
+      document.getElementById('ent-qtd').value = '1';
+      document.getElementById('ent-valor').value = '';
+      document.getElementById('ent-cliente-id').value = '';
+      document.getElementById('ent-endereco').value = '';
+      document.getElementById('ent-cliente').value = '';
+      document.getElementById('ent-whatsapp').value = '';
+      document.getElementById('ent-data-entrega').value = '';
+      document.getElementById('ent-observacoes').value = '';
+      document.getElementById('ent-status-pedido').value = 'Confirmado';
+      document.getElementById('ent-situacao-pagamento').value = 'Pendente';
+      document.getElementById('ent-valor-pago').value = '0';
+      document.getElementById('titulo-form-entrada').textContent = 'Novo Pedido';
+      document.getElementById('btn-salvar-entrada').textContent = '✓ Registrar Pedido';
+      document.getElementById('btn-cancelar-entrada').classList.add('hidden');
+      renderItensVenda();
+    }
+
+    document.getElementById('form-saidas').addEventListener('submit', function (e) {
+      e.preventDefault();
+      saidas.push({
+        data: document.getElementById('sai-data').value,
+        categoria: document.getElementById('sai-categoria').value,
+        descricao: document.getElementById('sai-descricao').value,
+        valor: parseFloat(document.getElementById('sai-valor').value)
+      });
+      marcarAlteracao();
+      renderSaidas();
+      document.getElementById('sai-descricao').value = '';
+      document.getElementById('sai-valor').value = '';
+    });
+
+    function removerEntrada(i) { if (garantirHistorico(entradas[i]).length) { alert('Este pedido possui histórico financeiro. Use Cancelado e registre estornos para preservar os registros.'); return; } if(confirm("Tem certeza que deseja excluir esta venda?")) { cancelarEdicaoEntrada(); entradas.splice(i, 1); marcarAlteracao(); renderEntradas(); } }
+    function removerSaida(i) {
+      if (saidas[i]?.compraId) {
+        alert('Esta despesa foi gerada por uma compra. Edite ou exclua a compra na área Fornecedores & Compras.');
+        return;
+      }
+      if(confirm("Tem certeza que deseja excluir este gasto?")) { saidas.splice(i, 1); marcarAlteracao(); renderSaidas(); }
+    }
+
+    function aplicarFiltroPeriodo(tipo) {
+      const hoje = new Date();
+      const y = hoje.getFullYear();
+      const m = hoje.getMonth();
+      const elInicio = document.getElementById('resumo-data-inicio');
+      const elFim = document.getElementById('resumo-data-fim');
+      
+      if (tipo === 'mes-atual') {
+        elInicio.value = dataLocalISO(new Date(y, m, 1));
+        elFim.value = dataLocalISO(new Date(y, m + 1, 0));
+      } else if (tipo === 'hoje') {
+        const d = dataLocalISO(hoje);
+        elInicio.value = d;
+        elFim.value = d;
+      } else if (tipo === '7dias') {
+        const inicio = new Date();
+        inicio.setDate(hoje.getDate() - 6);
+        elInicio.value = dataLocalISO(inicio);
+        elFim.value = dataLocalISO(hoje);
+      } else if (tipo === '30dias') {
+        const inicio = new Date();
+        inicio.setDate(hoje.getDate() - 29);
+        elInicio.value = dataLocalISO(inicio);
+        elFim.value = dataLocalISO(hoje);
+      } else if (tipo === 'tudo') {
+        elInicio.value = '';
+        elFim.value = '';
+      }
+      atualizarResumo();
+    }
+
+    function inicializarFiltroPeriodoPadrao() {
+      const hoje = new Date();
+      const y = hoje.getFullYear();
+      const m = hoje.getMonth();
+      const primDia = dataLocalISO(new Date(y, m, 1));
+      const ultDia = dataLocalISO(new Date(y, m + 1, 0));
+      const elInicio = document.getElementById('resumo-data-inicio');
+      const elFim = document.getElementById('resumo-data-fim');
+      if (elInicio && !elInicio.value) elInicio.value = primDia;
+      if (elFim && !elFim.value) elFim.value = ultDia;
+    }
+
+    function atualizarResumo() {
+      const elInicio = document.getElementById('resumo-data-inicio');
+      const elFim = document.getElementById('resumo-data-fim');
+      const dInicio = elInicio ? elInicio.value : '';
+      const dFim = elFim ? elFim.value : '';
+      
+      // Atualiza legenda de período
+      const legendaEl = document.getElementById('resumo-legenda-periodo');
+      if (legendaEl) {
+        if (!dInicio && !dFim) {
+          legendaEl.textContent = "Mostrando TODO o histórico geral (todas as datas)";
+        } else if (dInicio && dFim) {
+          legendaEl.textContent = `Filtrado de ${formatDate(dInicio)} até ${formatDate(dFim)}`;
+        } else if (dInicio) {
+          legendaEl.textContent = `Filtrado a partir de ${formatDate(dInicio)}`;
+        } else {
+          legendaEl.textContent = `Filtrado até ${formatDate(dFim)}`;
+        }
+      }
+
+      // Filtra entradas
+      const entFiltradas = entradas.filter(e => {
+        if (e.statusPedido === 'Cancelado') return false;
+        if (dInicio && e.data < dInicio) return false;
+        if (dFim && e.data > dFim) return false;
+        return true;
+      });
+
+      // Saldos anteriores sem data só entram no período completo.
+      // Filtra saídas
+      const saiFiltradas = saidas.filter(s => {
+        if (dInicio && s.data < dInicio) return false;
+        if (dFim && s.data > dFim) return false;
+        return true;
+      });
+
+      const totalVendas = arredonda(entFiltradas.reduce((a, c) => a + c.total, 0));
+      const tE = recebimentosNoPeriodo(dInicio, dFim);
+      const totalAReceber = arredonda(entFiltradas.reduce((a, c) => a + restanteVenda(c), 0));
+      const tS = arredonda(saiFiltradas.reduce((a, c) => a + c.valor, 0));
+      const lucro = tE - tS;
+
+      document.getElementById('resumo-entradas').innerText = formatCurrency(tE);
+      document.getElementById('resumo-a-receber').innerText = formatCurrency(totalAReceber);
+      document.getElementById('resumo-saidas').innerText = formatCurrency(tS);
+      
+      const elLucro = document.getElementById('resumo-lucro');
+      elLucro.innerText = formatCurrency(lucro);
+      elLucro.className = lucro >= 0 
+        ? "text-3xl font-bold text-green-600" 
+        : "text-3xl font-bold text-red-600";
+
+      document.getElementById('resumo-qtd-vendas').innerText = `${entFiltradas.length} venda(s)`;
+      document.getElementById('resumo-qtd-gastos').innerText = `${saiFiltradas.length} gasto(s)`;
+
+      // Margem de lucro
+      const margem = tE > 0 ? ((lucro / tE) * 100).toFixed(1) + '%' : '0%';
+      document.getElementById('resumo-margem').innerText = margem;
+
+      // Ticket médio
+      const ticketMedio = entFiltradas.length > 0 ? totalVendas / entFiltradas.length : 0;
+      document.getElementById('resumo-ticket').innerText = formatCurrency(ticketMedio);
+
+      // Produto mais vendido no período
+      const contagemProd = {};
+      entFiltradas.forEach(e => {
+        itensDaVenda(e).forEach(item => { contagemProd[item.produto] = (contagemProd[item.produto] || 0) + item.qtd; });
+      });
+      let maisVendido = "Nenhuma venda";
+      let maiorQtd = 0;
+      for (const p in contagemProd) {
+        if (contagemProd[p] > maiorQtd) {
+          maiorQtd = contagemProd[p];
+          maisVendido = p;
+        }
+      }
+      document.getElementById('resumo-campeao').innerText = maiorQtd > 0 ? `${maisVendido} (${maiorQtd} un)` : 'Nenhuma venda';
+
+      // Maior centro de custos
+      const contagemCat = {};
+      saiFiltradas.forEach(s => {
+        contagemCat[s.categoria] = (contagemCat[s.categoria] || 0) + s.valor;
+      });
+      let maiorCat = "Nenhum gasto";
+      let maiorValorCat = 0;
+      for (const c in contagemCat) {
+        if (contagemCat[c] > maiorValorCat) {
+          maiorValorCat = contagemCat[c];
+          maiorCat = c;
+        }
+      }
+      document.getElementById('resumo-maior-gasto').innerText = maiorValorCat > 0 ? `${maiorCat} (${formatCurrency(maiorValorCat)})` : 'Nenhum gasto';
+    }
+
+    // ========== ÁREA FÁBRICA: 1. INSUMOS ==========
+    function proximoIdInsumo() {
+      return insumos.reduce((maior, insumo) => Math.max(maior, Number(insumo.id) || 0), 0) + 1;
+    }
+
+    function normalizarInsumo(insumo, indice) {
+      const id = Number(insumo?.id);
+      return {
+        id: Number.isInteger(id) && id > 0 ? id : indice + 1,
+        nome: String(insumo?.nome || '').trim(),
+        preco: Number(insumo?.preco) || 0,
+        peso: Number(insumo?.peso) > 0 ? Number(insumo.peso) : 1,
+        medida: String(insumo?.medida || 'g')
+      };
+    }
+
+    function renderInsumos() {
+      const tbody = document.getElementById('lista-insumos');
+      const select = document.getElementById('rec-insumo-select');
+      tbody.innerHTML = '';
+      select.innerHTML = '<option value="">-- Escolha um Insumo --</option>';
+      
+      insumos.forEach((item, index) => {
+        const custoUnit = item.preco / item.peso;
+        tbody.innerHTML += `
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-gray-50">
+            <td class="py-2 pr-4 font-semibold text-[var(--primary)]">${escaparHTML(item.nome)}</td>
+            <td class="py-2 pr-4">${formatCurrency(item.preco)}</td>
+            <td class="py-2 pr-4">${item.peso}${escaparHTML(item.medida)}</td>
+            <td class="py-2 pr-4 font-bold text-gray-700">${formatCurrency(custoUnit)} / ${escaparHTML(item.medida)}</td>
+            <td class="py-2">
+              <button onclick="editarInsumo(${index})" class="text-blue-500 hover:underline text-xs mr-2 font-bold">Editar</button>
+              <button onclick="removerInsumo(${index})" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>
+            </td>
+          </tr>`;
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${item.nome} (${formatCurrency(custoUnit)}/${item.medida})`;
+        select.appendChild(option);
+      });
+      
+      recalcularCustosReceitas();
+      atualizarDropdownsCompras();
+    }
+
+    document.getElementById('form-insumos').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const nome = document.getElementById('ins-nome').value.trim();
+      const preco = parseFloat(document.getElementById('ins-preco').value);
+      const peso = parseFloat(document.getElementById('ins-peso').value);
+      const medida = document.getElementById('ins-medida').value;
+      const duplicado = insumos.some((item, index) => index !== indiceInsumoEmEdicao && item.nome.toLowerCase() === nome.toLowerCase() && item.medida === medida);
+      if (duplicado) {
+        alert('Já existe um insumo com esse nome e unidade.');
+        return;
+      }
+      
+      if (indiceInsumoEmEdicao !== null) {
+        // Editando insumo existente
+        const id = insumos[indiceInsumoEmEdicao].id;
+        insumos[indiceInsumoEmEdicao] = { id, nome, preco, peso, medida };
+        cancelarEdicaoInsumo();
+      } else {
+        // Novo insumo
+        insumos.push({ id: proximoIdInsumo(), nome, preco, peso, medida });
+      }
+      marcarAlteracao();
+      renderInsumos();
+      document.getElementById('ins-nome').value = '';
+      document.getElementById('ins-preco').value = '';
+      document.getElementById('ins-peso').value = '';
+    });
+
+    function editarInsumo(i) {
+      indiceInsumoEmEdicao = i;
+      const ins = insumos[i];
+      document.getElementById('ins-nome').value = ins.nome;
+      document.getElementById('ins-preco').value = ins.preco;
+      document.getElementById('ins-peso').value = ins.peso;
+      document.getElementById('ins-medida').value = ins.medida;
+      document.getElementById('titulo-form-insumo').textContent = `✏️ Editando Insumo: ${ins.nome}`;
+      document.getElementById('btn-salvar-insumo').textContent = "Atualizar Insumo";
+      document.getElementById('btn-cancelar-insumo').classList.remove('hidden');
+      document.getElementById('ins-nome').focus();
+    }
+
+    function cancelarEdicaoInsumo() {
+      indiceInsumoEmEdicao = null;
+      document.getElementById('ins-nome').value = '';
+      document.getElementById('ins-preco').value = '';
+      document.getElementById('ins-peso').value = '';
+      document.getElementById('titulo-form-insumo').textContent = "Cadastrar Novo Insumo (Ingrediente ou Embalagem)";
+      document.getElementById('btn-salvar-insumo').textContent = "Salvar Insumo";
+      document.getElementById('btn-cancelar-insumo').classList.add('hidden');
+    }
+
+    function removerInsumo(i) { 
+      const insumo = insumos[i];
+      const usadoEmReceita = receitas.some(receita => receita.ingredientes.some(ingrediente =>
+        ingrediente.insumoId === insumo.id || (ingrediente.nome.toLowerCase() === insumo.nome.toLowerCase() && ingrediente.medida === insumo.medida)
+      ));
+      const usadoEmCompra = compras.some(compra => compra.insumoId === insumo.id || (compra.insumoNome === insumo.nome && compra.medida === insumo.medida));
+      if (usadoEmReceita || usadoEmCompra) {
+        alert('Este insumo está vinculado a uma ficha técnica ou compra e não pode ser excluído. Você ainda pode alterar seus dados.');
+        return;
+      }
+      if(confirm("Tem certeza que deseja excluir este insumo?")) { 
+        cancelarEdicaoInsumo();
+        insumos.splice(i, 1); 
+        marcarAlteracao();
+        renderInsumos(); 
+      } 
+    }
+
+    // Recalcula o custo de todas as receitas caso o preço de algum insumo mude
+    function recalcularCustosReceitas() {
+      receitas.forEach(rec => {
+        let novoCustoTotal = 0;
+        rec.ingredientes.forEach(ing => {
+          const insumoAtual = insumos.find(i => i.id === Number(ing.insumoId)) || insumos.find(i => i.nome.toLowerCase() === String(ing.nome || '').toLowerCase() && i.medida === ing.medida);
+          if (insumoAtual) {
+            ing.insumoId = insumoAtual.id;
+            ing.nome = insumoAtual.nome;
+            ing.medida = insumoAtual.medida;
+            ing.custo = (insumoAtual.preco / insumoAtual.peso) * ing.qtdUsada;
+          }
+          novoCustoTotal += (ing.custo || 0);
+        });
+        rec.custoTotal = novoCustoTotal;
+      });
+      receitaAtualIngredientes.forEach(ing => {
+        const insumoAtual = insumos.find(i => i.id === Number(ing.insumoId)) || insumos.find(i => i.nome.toLowerCase() === String(ing.nome || '').toLowerCase() && i.medida === ing.medida);
+        if (insumoAtual) {
+          ing.insumoId = insumoAtual.id;
+          ing.nome = insumoAtual.nome;
+          ing.medida = insumoAtual.medida;
+          ing.custo = (insumoAtual.preco / insumoAtual.peso) * ing.qtdUsada;
+        }
+      });
+      atualizarTabelaMontagem();
+      renderReceitasSalvas();
+      atualizarDropdownProdutos();
+    }
+
+    // ========== ÁREA FÁBRICA: 2. FICHAS TÉCNICAS (RECEITAS) ==========
+    document.getElementById('form-item-receita').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const idxInsumo = document.getElementById('rec-insumo-select').value;
+      if(idxInsumo === "") {
+        alert("Cadastre e escolha um insumo na lista!");
+        return;
+      }
+      const qtdUsada = parseFloat(document.getElementById('rec-qtd-usada').value);
+      const insumoInfo = insumos[idxInsumo];
+      
+      const custoParcial = (insumoInfo.preco / insumoInfo.peso) * qtdUsada;
+      
+      // Se o ingrediente já estiver adicionado, apenas soma
+      const ingExistente = receitaAtualIngredientes.find(i => i.insumoId === insumoInfo.id);
+      if (ingExistente) {
+        ingExistente.qtdUsada += qtdUsada;
+        ingExistente.custo += custoParcial;
+      } else {
+        receitaAtualIngredientes.push({
+          insumoId: insumoInfo.id,
+          nome: insumoInfo.nome,
+          qtdUsada: qtdUsada,
+          medida: insumoInfo.medida,
+          custo: custoParcial
+        });
+      }
+      
+      atualizarTabelaMontagem();
+      document.getElementById('rec-qtd-usada').value = '';
+    });
+
+    function removerIngredienteMontagem(idx) {
+      receitaAtualIngredientes.splice(idx, 1);
+      atualizarTabelaMontagem();
+    }
+
+    function atualizarTabelaMontagem() {
+      const tbody = document.getElementById('tabela-ingredientes-atual');
+      tbody.innerHTML = '';
+      
+      if (receitaAtualIngredientes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-gray-400 text-xs">Nenhum ingrediente adicionado nesta ficha ainda.</td></tr>';
+        document.getElementById('custo-total-atual').innerText = formatCurrency(0);
+        atualizarPrecificacaoEditor('preco');
+        return;
+      }
+
+      let total = 0;
+      receitaAtualIngredientes.forEach((ing, index) => {
+        total += ing.custo;
+        tbody.innerHTML += `
+          <tr class="border-b border-gray-100 text-sm hover:bg-gray-50">
+            <td class="py-2 font-medium">${escaparHTML(ing.nome)}</td>
+            <td class="py-2">${ing.qtdUsada}${escaparHTML(ing.medida)}</td>
+            <td class="py-2 text-right text-red-600 font-semibold">${formatCurrency(ing.custo)}</td>
+            <td class="py-2 text-center">
+              <button type="button" onclick="removerIngredienteMontagem(${index})" class="text-red-500 font-bold hover:underline text-xs">X</button>
+            </td>
+          </tr>`;
+      });
+      document.getElementById('custo-total-atual').innerText = formatCurrency(total);
+      atualizarPrecificacaoEditor('preco');
+    }
+
+    function salvarReceita() {
+      const nome = document.getElementById('rec-nome').value.trim();
+      const rendimentoEl = document.getElementById('rec-rendimento');
+      const rendimento = Number(rendimentoEl.value);
+      
+      if (!nome) {
+        alert("Por favor, digite o nome da Receita/Ficha Técnica!");
+        document.getElementById('rec-nome').focus();
+        return;
+      }
+      if (!Number.isFinite(rendimento) || rendimento <= 0) {
+        alert('Informe quantas unidades esta receita produz.');
+        rendimentoEl.focus();
+        return;
+      }
+      if (receitas.some((receita, index) => index !== indiceReceitaEmEdicao && receita.nome.toLowerCase() === nome.toLowerCase())) {
+        alert('Já existe uma ficha técnica com esse nome.');
+        return;
+      }
+      if (receitaAtualIngredientes.length === 0) {
+        alert("Adicione pelo menos 1 ingrediente à ficha!");
+        return;
+      }
+
+      const precoVendaEl = document.getElementById('rec-preco-venda');
+      const margemEl = document.getElementById('rec-margem');
+      const margemInformada = margemEl.value.trim() === '' ? null : Number(margemEl.value);
+      if (margemInformada !== null && (!Number.isFinite(margemInformada) || margemInformada >= 100)) {
+        exibirErroPrecificacao('A margem precisa ser um número menor que 100%.');
+        margemEl.focus();
+        return;
+      }
+      let sellingPrice = precoVendaEl.value.trim() === '' ? null : Number(precoVendaEl.value);
+      if (sellingPrice !== null && (!Number.isFinite(sellingPrice) || sellingPrice < 0)) {
+        exibirErroPrecificacao('Informe um preço de venda válido.');
+        precoVendaEl.focus();
+        return;
+      }
+      const produtoConvertidoIndex = produtos.findIndex(produto => produto.nome.toLowerCase() === nome.toLowerCase());
+      if (produtoConvertidoIndex >= 0 && sellingPrice === null && Number.isFinite(produtos[produtoConvertidoIndex].preco)) {
+        sellingPrice = produtos[produtoConvertidoIndex].preco;
+      }
+
+      receitaAtualIngredientes.forEach(ingrediente => {
+        const insumo = insumos.find(item => item.id === Number(ingrediente.insumoId));
+        if (insumo) {
+          ingrediente.nome = insumo.nome;
+          ingrediente.medida = insumo.medida;
+          ingrediente.custo = (insumo.preco / insumo.peso) * ingrediente.qtdUsada;
+        }
+      });
+      const custoTotal = receitaAtualIngredientes.reduce((acc, curr) => acc + curr.custo, 0);
+      const novaReceita = {
+        nome: nome,
+        rendimento: rendimento,
+        ingredientes: [...receitaAtualIngredientes],
+        custoTotal: custoTotal,
+        sellingPrice: sellingPrice === null ? null : arredonda(sellingPrice)
+      };
+
+      if (indiceReceitaEmEdicao !== null) {
+        receitas[indiceReceitaEmEdicao] = novaReceita;
+        alert(`Ficha técnica "${nome}" atualizada com sucesso!`);
+      } else {
+        receitas.push(novaReceita);
+        alert(`Ficha técnica "${nome}" salva com sucesso! Ela já aparece na sua lista de Vendas.`);
+      }
+      if (produtoConvertidoIndex >= 0) produtos.splice(produtoConvertidoIndex, 1);
+
+      marcarAlteracao();
+      cancelarEdicaoReceita();
+      renderReceitasSalvas();
+      atualizarDropdownProdutos();
+      renderCardapio();
+    }
+
+    function editarReceita(index) {
+      indiceReceitaEmEdicao = index;
+      const rec = receitas[index];
+      document.getElementById('rec-nome').value = rec.nome;
+      document.getElementById('rec-rendimento').value = normalizarRendimento(rec.rendimento);
+      document.getElementById('rec-preco-venda').value = Number.isFinite(rec.sellingPrice) ? Number(rec.sellingPrice).toFixed(2) : '';
+      receitaAtualIngredientes = JSON.parse(JSON.stringify(rec.ingredientes));
+      
+      document.getElementById('titulo-ficha-form').textContent = `✏️ Editando Ficha: ${rec.nome}`;
+      document.getElementById('btn-cancelar-ficha').classList.remove('hidden');
+      atualizarTabelaMontagem();
+      
+      // Rola a tela suavemente para o formulário
+      document.getElementById('titulo-ficha-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoReceita() {
+      indiceReceitaEmEdicao = null;
+      document.getElementById('rec-nome').value = '';
+      document.getElementById('rec-rendimento').value = '1';
+      document.getElementById('rec-preco-venda').value = '';
+      document.getElementById('rec-margem').value = '';
+      exibirErroPrecificacao();
+      receitaAtualIngredientes = [];
+      document.getElementById('titulo-ficha-form').textContent = "Criar Nova Ficha Técnica";
+      document.getElementById('btn-cancelar-ficha').classList.add('hidden');
+      atualizarTabelaMontagem();
+    }
+
+    function renderReceitasSalvas() {
+      const container = document.getElementById('lista-receitas-salvas');
+      container.innerHTML = '';
+      
+      if (receitas.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 col-span-2">Nenhuma ficha técnica cadastrada ainda. Crie sua primeira ficha no formulário acima!</p>';
+        return;
+      }
+
+      receitas.forEach((rec, index) => {
+        const rendimento = normalizarRendimento(rec.rendimento);
+        const custoUnitario = calcularCustoPorUnidade(rec.custoTotal, rendimento);
+        const margem = calcularMargem(custoUnitario, rec.sellingPrice);
+        const valorTotal = Number.isFinite(rec.sellingPrice) ? rec.sellingPrice * rendimento : null;
+        const lucroTotal = valorTotal === null ? null : valorTotal - rec.custoTotal;
+        const precoTexto = Number.isFinite(rec.sellingPrice) ? formatCurrency(rec.sellingPrice) : 'Não definido';
+        const valorTotalTexto = valorTotal === null ? 'Não definido' : formatCurrency(valorTotal);
+        const lucroTotalTexto = lucroTotal === null ? 'Não definido' : formatCurrency(lucroTotal);
+        const margemTexto = margem === null ? 'Não definida' : `${margem.toFixed(2)}%`;
+        const margemClasse = margem === null ? 'text-gray-500' : (margem < 0 ? 'text-red-600' : 'text-green-600');
+        const lucroClasse = lucroTotal === null ? 'text-gray-500' : (lucroTotal < 0 ? 'text-red-600' : 'text-green-600');
+        let ingsHTML = rec.ingredientes.map(i => `
+          <li class="text-xs flex justify-between border-b border-gray-50 pb-1">
+            <span>${i.qtdUsada}${escaparHTML(i.medida)} ${escaparHTML(i.nome)}</span> 
+            <span class="font-medium text-gray-600">${formatCurrency(i.custo)}</span>
+          </li>`).join('');
+
+        container.innerHTML += `
+          <div class="border border-[var(--border)] rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition">
+            <div class="flex justify-between items-start mb-2 border-b border-[var(--border)] pb-2">
+              <div>
+                <h4 class="font-bold text-[var(--primary)] text-lg leading-tight">${escaparHTML(rec.nome)}</h4>
+                <p class="text-xs text-gray-400">Rendimento: ${rendimento.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} unidade(s)</p>
+              </div>
+              <div class="flex space-x-2">
+                <button onclick="editarReceita(${index})" class="text-blue-600 hover:text-blue-800 font-bold text-xs bg-blue-50 px-2 py-1 rounded">Editar</button>
+                <button onclick="removerReceita(${index})" class="text-red-500 hover:text-red-700 font-bold text-xs bg-red-50 px-2 py-1 rounded">Excluir</button>
+              </div>
+            </div>
+            <ul class="mb-4 space-y-1 mt-2 max-h-36 overflow-y-auto pr-1">${ingsHTML}</ul>
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 bg-gray-50 p-2 rounded border border-gray-200 text-center">
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Custo total</span>
+                <span class="font-black text-red-600">${formatCurrency(rec.custoTotal)}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Custo por unidade</span>
+                <span class="font-black text-red-600">${formatCurrency(custoUnitario)}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Preço por unidade</span>
+                <span class="font-black text-gray-800">${precoTexto}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Valor total de venda</span>
+                <span class="font-black text-gray-800">${valorTotalTexto}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Lucro total</span>
+                <span class="font-black ${lucroClasse}">${lucroTotalTexto}</span>
+              </div>
+              <div>
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Margem Bruta</span>
+                <span class="font-black ${margemClasse}">${margemTexto}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function removerReceita(i) {
+      if(confirm(`Tem certeza que deseja apagar a Ficha Técnica "${receitas[i].nome}"?`)) {
+        cancelarEdicaoReceita();
+        receitas.splice(i, 1);
+        marcarAlteracao();
+        renderReceitasSalvas();
+        atualizarDropdownProdutos();
+        renderCardapio();
+      }
+    }
+
+    // ========== ÁREA FÁBRICA: 3. FORNECEDORES E COMPRAS ==========
+    function proximoIdFornecedor() {
+      return fornecedores.reduce((maior, fornecedor) => Math.max(maior, Number(fornecedor.id) || 0), 0) + 1;
+    }
+
+    function nomeFornecedorPorId(id) {
+      return fornecedores.find(fornecedor => Number(fornecedor.id) === Number(id))?.nome || 'Fornecedor não encontrado';
+    }
+
+    function normalizarFornecedor(fornecedor, indice) {
+      const id = Number(fornecedor?.id);
+      return {
+        id: Number.isInteger(id) && id > 0 ? id : indice + 1,
+        nome: String(fornecedor?.nome || '').trim()
+      };
+    }
+
+    function proximoIdCompra() {
+      return compras.reduce((maior, compra) => Math.max(maior, Number(compra.id) || 0), 0) + 1;
+    }
+
+    function normalizarCompra(compra, baseInsumos = insumos, indice = 0) {
+      const idInformado = Number(compra?.insumoId);
+      const compraId = Number(compra?.id);
+      const insumo = baseInsumos.find(item => item.id === idInformado) || baseInsumos.find(item => item.nome === compra?.insumoNome && item.medida === compra?.medida);
+      return {
+        id: Number.isInteger(compraId) && compraId > 0 ? compraId : indice + 1,
+        data: dataParaISO(compra?.data),
+        fornecedorId: Number(compra?.fornecedorId) || 0,
+        insumoId: insumo?.id || null,
+        insumoNome: String(compra?.insumoNome || ''),
+        precoEmbalagem: Number(compra?.precoEmbalagem) || 0,
+        conteudoEmbalagem: Number(compra?.conteudoEmbalagem) || 0,
+        medida: String(compra?.medida || 'g'),
+        quantidade: Math.max(1, Number(compra?.quantidade) || 1)
+      };
+    }
+
+    function sincronizarSaidaCompra(compra) {
+      const fornecedor = nomeFornecedorPorId(compra.fornecedorId);
+      const saida = {
+        data: compra.data,
+        categoria: 'Ingredientes',
+        descricao: `Compra automática: ${compra.insumoNome} — ${fornecedor}`,
+        valor: arredonda(compra.precoEmbalagem * compra.quantidade),
+        compraId: compra.id
+      };
+      const indiceSaida = saidas.findIndex(item => Number(item.compraId) === Number(compra.id));
+      if (indiceSaida >= 0) saidas[indiceSaida] = saida;
+      else saidas.push(saida);
+      renderSaidas();
+    }
+
+    function atualizarDropdownsCompras() {
+      const selectFornecedor = document.getElementById('compra-fornecedor');
+      const fornecedorSelecionado = selectFornecedor.value;
+      selectFornecedor.innerHTML = '<option value="">Selecione um fornecedor...</option>';
+      fornecedores.forEach(fornecedor => {
+        const option = document.createElement('option');
+        option.value = fornecedor.id;
+        option.textContent = `#${String(fornecedor.id).padStart(4, '0')} — ${fornecedor.nome}`;
+        selectFornecedor.appendChild(option);
+      });
+      if ([...selectFornecedor.options].some(option => option.value === fornecedorSelecionado)) {
+        selectFornecedor.value = fornecedorSelecionado;
+      }
+
+      const selectInsumo = document.getElementById('compra-insumo');
+      const insumoSelecionado = selectInsumo.value;
+      selectInsumo.innerHTML = '<option value="">Selecione um insumo...</option>';
+      insumos.forEach((insumo, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${insumo.nome} (${insumo.medida})`;
+        selectInsumo.appendChild(option);
+      });
+      if ([...selectInsumo.options].some(option => option.value === insumoSelecionado)) {
+        selectInsumo.value = insumoSelecionado;
+      }
+
+      const filtro = document.getElementById('filtro-comparativo-insumo');
+      const filtroSelecionado = filtro.value;
+      const nomesComprados = [...new Set(compras.map(compra => compra.insumoNome).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      filtro.innerHTML = '<option value="">Todos os insumos</option>';
+      nomesComprados.forEach(nome => {
+        const option = document.createElement('option');
+        option.value = nome;
+        option.textContent = nome;
+        filtro.appendChild(option);
+      });
+      if (nomesComprados.includes(filtroSelecionado)) filtro.value = filtroSelecionado;
+    }
+
+    function renderFornecedores() {
+      const tbody = document.getElementById('lista-fornecedores');
+      if (fornecedores.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-gray-400">Nenhum fornecedor cadastrado.</td></tr>';
+      } else {
+        tbody.innerHTML = fornecedores.map((fornecedor, index) => `
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-gray-50">
+            <td class="py-2 pr-4 font-mono text-xs">#${String(fornecedor.id).padStart(4, '0')}</td>
+            <td class="py-2 pr-4 font-semibold">${escaparHTML(fornecedor.nome)}</td>
+            <td class="py-2">
+              <button onclick="editarFornecedor(${index})" class="text-blue-600 hover:underline text-xs font-bold mr-2">Editar</button>
+              <button onclick="removerFornecedor(${index})" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>
+            </td>
+          </tr>`).join('');
+      }
+      atualizarDropdownsCompras();
+    }
+
+    document.getElementById('form-fornecedores').addEventListener('submit', function(evento) {
+      evento.preventDefault();
+      const nome = document.getElementById('forn-nome').value.trim();
+      const duplicado = fornecedores.some((fornecedor, index) => index !== indiceFornecedorEmEdicao && fornecedor.nome.toLowerCase() === nome.toLowerCase());
+      if (duplicado) {
+        alert('Já existe um fornecedor com esse nome.');
+        return;
+      }
+
+      if (indiceFornecedorEmEdicao === null) {
+        fornecedores.push({ id: proximoIdFornecedor(), nome });
+      } else {
+        fornecedores[indiceFornecedorEmEdicao].nome = nome;
+      }
+      marcarAlteracao();
+      cancelarEdicaoFornecedor();
+      renderFornecedores();
+      renderCompras();
+    });
+
+    function editarFornecedor(index) {
+      indiceFornecedorEmEdicao = index;
+      document.getElementById('forn-nome').value = fornecedores[index].nome;
+      document.getElementById('titulo-form-fornecedor').textContent = `Editando Fornecedor #${String(fornecedores[index].id).padStart(4, '0')}`;
+      document.getElementById('btn-salvar-fornecedor').textContent = 'Atualizar';
+      document.getElementById('btn-cancelar-fornecedor').classList.remove('hidden');
+      document.getElementById('forn-nome').focus();
+    }
+
+    function cancelarEdicaoFornecedor() {
+      indiceFornecedorEmEdicao = null;
+      document.getElementById('forn-nome').value = '';
+      document.getElementById('titulo-form-fornecedor').textContent = 'Cadastrar Fornecedor';
+      document.getElementById('btn-salvar-fornecedor').textContent = 'Salvar';
+      document.getElementById('btn-cancelar-fornecedor').classList.add('hidden');
+    }
+
+    function removerFornecedor(index) {
+      const fornecedor = fornecedores[index];
+      if (compras.some(compra => Number(compra.fornecedorId) === Number(fornecedor.id))) {
+        alert('Este fornecedor possui compras no histórico e não pode ser excluído. Você ainda pode alterar o nome.');
+        return;
+      }
+      if (confirm(`Excluir o fornecedor "${fornecedor.nome}"?`)) {
+        fornecedores.splice(index, 1);
+        marcarAlteracao();
+        cancelarEdicaoFornecedor();
+        renderFornecedores();
+      }
+    }
+
+    function atualizarDadosInsumoCompra(preencherValores = true) {
+      const indice = document.getElementById('compra-insumo').value;
+      const insumo = indice === '' ? null : insumos[Number(indice)];
+      document.getElementById('compra-medida').textContent = insumo?.medida || '—';
+      if (preencherValores) {
+        document.getElementById('compra-conteudo').value = insumo ? insumo.peso : '';
+        document.getElementById('compra-preco').value = insumo ? Number(insumo.preco).toFixed(2) : '';
+      }
+    }
+
+    document.getElementById('compra-insumo').addEventListener('change', () => atualizarDadosInsumoCompra(true));
+
+    document.getElementById('form-compras').addEventListener('submit', function(evento) {
+      evento.preventDefault();
+      const indiceInsumo = document.getElementById('compra-insumo').value;
+      const insumo = indiceInsumo === '' ? null : insumos[Number(indiceInsumo)];
+      if (!insumo) {
+        alert('Cadastre e selecione um insumo antes de registrar a compra.');
+        return;
+      }
+
+      const novaCompra = indiceCompraEmEdicao === null;
+      const compraAnterior = novaCompra ? null : compras[indiceCompraEmEdicao];
+      const compra = {
+        id: novaCompra ? proximoIdCompra() : compraAnterior.id,
+        data: document.getElementById('compra-data').value,
+        fornecedorId: Number(document.getElementById('compra-fornecedor').value),
+        insumoId: insumo.id,
+        insumoNome: insumo.nome,
+        precoEmbalagem: Number(document.getElementById('compra-preco').value),
+        conteudoEmbalagem: Number(document.getElementById('compra-conteudo').value),
+        medida: insumo.medida,
+        quantidade: Number(document.getElementById('compra-quantidade').value)
+      };
+
+      if (!compra.fornecedorId || compra.precoEmbalagem <= 0 || compra.conteudoEmbalagem <= 0 || compra.quantidade < 1) {
+        alert('Preencha todos os dados da compra com valores maiores que zero.');
+        return;
+      }
+
+      if (novaCompra) compras.push(compra);
+      else compras[indiceCompraEmEdicao] = compra;
+      sincronizarSaidaCompra(compra);
+      marcarAlteracao();
+
+      const atualizarCusto = novaCompra && confirm(
+        `Compra registrada. Deseja atualizar o custo do insumo "${insumo.nome}" para ${formatCurrency(compra.precoEmbalagem)} por ${compra.conteudoEmbalagem}${compra.medida}? As fichas técnicas serão recalculadas.`
+      );
+      cancelarEdicaoCompra();
+      if (atualizarCusto) {
+        atualizarCustoInsumoComCompra(compra);
+      }
+      renderCompras();
+    });
+
+    function custoUnitarioCompra(compra) {
+      return compra.conteudoEmbalagem > 0 ? compra.precoEmbalagem / compra.conteudoEmbalagem : 0;
+    }
+
+    function renderCompras() {
+      const tbody = document.getElementById('lista-compras');
+      if (compras.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="py-4 text-center text-gray-400">Nenhuma compra registrada.</td></tr>';
+      } else {
+        tbody.innerHTML = compras.map((compra, index) => `
+          <tr class="border-b border-[var(--border)] last:border-0 hover:bg-gray-50">
+            <td class="py-2 pr-4">${formatDate(compra.data)}</td>
+            <td class="py-2 pr-4 font-semibold">${escaparHTML(nomeFornecedorPorId(compra.fornecedorId))}</td>
+            <td class="py-2 pr-4">${escaparHTML(compra.insumoNome)}</td>
+            <td class="py-2 pr-4">${compra.quantidade}</td>
+            <td class="py-2 pr-4">${formatCurrency(compra.precoEmbalagem)}</td>
+            <td class="py-2 pr-4">${compra.conteudoEmbalagem}${escaparHTML(compra.medida)}</td>
+            <td class="py-2 pr-4 font-bold text-[var(--primary)]">${formatCurrency(custoUnitarioCompra(compra))}/${escaparHTML(compra.medida)}</td>
+            <td class="py-2 pr-4 font-semibold">${formatCurrency(compra.precoEmbalagem * compra.quantidade)}</td>
+            <td class="py-2">
+              <button onclick="aplicarCompraAoInsumo(${index})" class="text-green-700 hover:underline text-xs font-bold mr-2" title="Usar este preço na base de custos">Aplicar ao insumo</button>
+              <button onclick="editarCompra(${index})" class="text-blue-600 hover:underline text-xs font-bold mr-2">Editar</button>
+              <button onclick="removerCompra(${index})" class="text-red-500 hover:underline text-xs font-bold">Excluir</button>
+            </td>
+          </tr>`).join('');
+      }
+      atualizarDropdownsCompras();
+      renderComparativoCompras();
+    }
+
+    function editarCompra(index) {
+      const compra = compras[index];
+      const indiceInsumo = insumos.findIndex(insumo => insumo.id === Number(compra.insumoId)) >= 0
+        ? insumos.findIndex(insumo => insumo.id === Number(compra.insumoId))
+        : insumos.findIndex(insumo => insumo.nome === compra.insumoNome && insumo.medida === compra.medida);
+      if (indiceInsumo < 0) {
+        alert('O insumo desta compra não existe mais no cadastro e a compra não pode ser editada.');
+        return;
+      }
+      indiceCompraEmEdicao = index;
+      document.getElementById('compra-data').value = compra.data;
+      document.getElementById('compra-fornecedor').value = compra.fornecedorId;
+      document.getElementById('compra-insumo').value = indiceInsumo;
+      document.getElementById('compra-preco').value = compra.precoEmbalagem;
+      document.getElementById('compra-conteudo').value = compra.conteudoEmbalagem;
+      document.getElementById('compra-quantidade').value = compra.quantidade;
+      document.getElementById('compra-medida').textContent = compra.medida;
+      document.getElementById('titulo-form-compra').textContent = 'Editar Compra';
+      document.getElementById('btn-salvar-compra').textContent = 'Atualizar Compra';
+      document.getElementById('btn-cancelar-compra').classList.remove('hidden');
+      document.getElementById('titulo-form-compra').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoCompra() {
+      indiceCompraEmEdicao = null;
+      document.getElementById('form-compras').reset();
+      document.getElementById('compra-data').valueAsDate = new Date();
+      document.getElementById('compra-quantidade').value = '1';
+      document.getElementById('compra-medida').textContent = '—';
+      document.getElementById('titulo-form-compra').textContent = 'Registrar Compra de Insumo';
+      document.getElementById('btn-salvar-compra').textContent = 'Registrar Compra';
+      document.getElementById('btn-cancelar-compra').classList.add('hidden');
+    }
+
+    function removerCompra(index) {
+      if (confirm('Excluir esta compra e a despesa automática vinculada?')) {
+        const compraId = compras[index].id;
+        compras.splice(index, 1);
+        saidas = saidas.filter(saida => Number(saida.compraId) !== Number(compraId));
+        marcarAlteracao();
+        cancelarEdicaoCompra();
+        renderCompras();
+        renderSaidas();
+      }
+    }
+
+    function aplicarCompraAoInsumo(index) {
+      const compra = compras[index];
+      const insumo = insumos.find(item => item.id === Number(compra.insumoId)) || insumos.find(item => item.nome === compra.insumoNome && item.medida === compra.medida);
+      if (!insumo) {
+        alert('O insumo correspondente não existe mais no cadastro.');
+        return;
+      }
+      if (confirm(`Aplicar o preço de ${formatCurrency(compra.precoEmbalagem)} por ${compra.conteudoEmbalagem}${compra.medida} ao insumo "${insumo.nome}"? Isso recalculará os custos das receitas.`)) {
+        atualizarCustoInsumoComCompra(compra);
+      }
+    }
+
+    function atualizarCustoInsumoComCompra(compra) {
+      const insumo = insumos.find(item => item.id === Number(compra.insumoId)) || insumos.find(item => item.nome === compra.insumoNome && item.medida === compra.medida);
+      if (!insumo) {
+        alert('O insumo correspondente não existe mais no cadastro.');
+        return false;
+      }
+      insumo.preco = compra.precoEmbalagem;
+      insumo.peso = compra.conteudoEmbalagem;
+      marcarAlteracao();
+      renderInsumos();
+      alert('Preço aplicado ao insumo e custos das receitas recalculados.');
+      return true;
+    }
+
+    function renderComparativoCompras() {
+      const tbody = document.getElementById('lista-comparativo-compras');
+      const filtro = document.getElementById('filtro-comparativo-insumo').value;
+      const ultimasPorFornecedor = new Map();
+
+      compras.forEach((compra, index) => {
+        if (filtro && compra.insumoNome !== filtro) return;
+        const chave = `${compra.insumoNome}\u0000${compra.medida}\u0000${compra.fornecedorId}`;
+        const anterior = ultimasPorFornecedor.get(chave);
+        if (!anterior || compra.data > anterior.compra.data || (compra.data === anterior.compra.data && index > anterior.index)) {
+          ultimasPorFornecedor.set(chave, { compra, index });
+        }
+      });
+
+      const linhas = [...ultimasPorFornecedor.values()].map(item => item.compra);
+      const menoresCustos = new Map();
+      linhas.forEach(compra => {
+        const chaveInsumo = `${compra.insumoNome}\u0000${compra.medida}`;
+        const custo = custoUnitarioCompra(compra);
+        if (!menoresCustos.has(chaveInsumo) || custo < menoresCustos.get(chaveInsumo)) menoresCustos.set(chaveInsumo, custo);
+      });
+      linhas.sort((a, b) => a.insumoNome.localeCompare(b.insumoNome, 'pt-BR') || custoUnitarioCompra(a) - custoUnitarioCompra(b));
+
+      if (linhas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-gray-400">Registre compras para visualizar o comparativo.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = linhas.map(compra => {
+        const custo = custoUnitarioCompra(compra);
+        const melhor = Math.abs(custo - menoresCustos.get(`${compra.insumoNome}\u0000${compra.medida}`)) < 0.0000001;
+        return `
+          <tr class="border-b border-[var(--border)] last:border-0 ${melhor ? 'bg-green-50' : ''}">
+            <td class="py-2 pr-4 font-semibold">${escaparHTML(compra.insumoNome)}</td>
+            <td class="py-2 pr-4">${escaparHTML(nomeFornecedorPorId(compra.fornecedorId))}</td>
+            <td class="py-2 pr-4">${formatDate(compra.data)}</td>
+            <td class="py-2 pr-4">${formatCurrency(compra.precoEmbalagem)} / ${compra.conteudoEmbalagem}${escaparHTML(compra.medida)}</td>
+            <td class="py-2 pr-4 font-bold">${formatCurrency(custo)}/${escaparHTML(compra.medida)}</td>
+            <td class="py-2">${melhor ? '<span class="text-green-700 font-bold">✓ Melhor preço</span>' : '<span class="text-gray-400">—</span>'}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ========== INTEGRAÇÃO XLSX (IMPORTAR / EXPORTAR TUDO) ==========
+    function ativarTelaCarregada(nomeArquivo) {
+      planilhaCarregada = true;
+      document.body.classList.add('planilha-ativa');
+      document.getElementById('status-sem-planilha').classList.add('hidden');
+      document.getElementById('status-com-planilha').classList.remove('hidden');
+      document.getElementById('nome-arquivo-carregado').textContent = nomeArquivo;
+      document.getElementById('aviso-bloqueio').classList.add('hidden');
+      document.getElementById('conteudo-principal').classList.remove('hidden');
+      
+      renderEntradas();
+      renderSaidas();
+      renderInsumos();
+      renderReceitasSalvas();
+      atualizarDropdownProdutos();
+      renderCardapio();
+      renderFornecedores();
+      renderCompras();
+      inicializarFiltroPeriodoPadrao();
+      document.getElementById('contagem-dados').textContent = `${entradas.length} venda(s), ${produtos.length + receitas.length} produto(s) no cardápio, ${insumos.length} insumo(s), ${receitas.length} ficha(s), ${fornecedores.length} fornecedor(es) e ${compras.length} compra(s)`;
+    }
+
+    function novaPlanilha() {
+      if (!confirm('Deseja iniciar uma nova planilha em branco? Os dados não salvos na tela serão zerados.')) return;
+      entradas = [];
+      clientes = [];
+      cancelarEdicaoCliente();
+      document.getElementById('pedido-filtro').value = '';
+      document.getElementById('pedido-busca').value = '';
+      document.getElementById('cliente-busca').value = '';
+      saidas = [];
+      insumos = [];
+      receitas = [];
+      fornecedores = [];
+      compras = [];
+      produtos = criarProdutosPadrao();
+      cancelarEdicaoEntrada();
+      cancelarEdicaoReceita();
+      cancelarEdicaoInsumo();
+      cancelarEdicaoFornecedor();
+      cancelarEdicaoCompra();
+      alteracoesPendentes = false;
+      ativarTelaCarregada('Nova Planilha em Branco');
+    }
+
+    document.getElementById('input-carregar-planilha').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+
+          // Monta o novo estado antes de substituir os dados atuais.
+          const novasEntradas = wb.SheetNames.includes('Entradas')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Entradas']).map((row, index) => {
+              const total = parseFloat(row['Valor Total (R$)']) || 0;
+              const situacaoPagamento = ['Pago', 'Parcial', 'Pendente'].includes(row['Situação do Pagamento']) ? row['Situação do Pagamento'] : 'Pago';
+              const valorRecebidoInformado = row['Valor Recebido (R$)'];
+              const valorPago = valorRecebidoInformado === undefined || valorRecebidoInformado === ''
+                ? (situacaoPagamento === 'Pago' ? total : 0)
+                : Math.max(0, Math.min(Number(valorRecebidoInformado) || 0, total));
+              let itens;
+              if (row['Itens da Venda (JSON)']) {
+                itens = JSON.parse(row['Itens da Venda (JSON)']);
+                if (!Array.isArray(itens) || !itens.length || itens.some(i => !i.produto || !Number.isInteger(i.qtd) || i.qtd < 1 || !Number.isFinite(i.unit) || i.unit < 0)) throw new Error('Itens de venda inválidos');
+              }
+              let recebimentos;
+              if (row['Recebimentos (JSON)'] !== undefined && row['Recebimentos (JSON)'] !== '') {
+                recebimentos = JSON.parse(row['Recebimentos (JSON)']);
+                if (!Array.isArray(recebimentos) || recebimentos.some(r => !Number.isInteger(r.id) || !Number.isFinite(r.valor) || r.valor === 0 || (r.data && !dataRecebimentoValida(r.data))) || new Set(recebimentos.map(r=>r.id)).size !== recebimentos.length) throw new Error('Histórico de recebimentos inválido');
+                const saldo = arredonda(recebimentos.reduce((s,r)=>s+r.valor,0));
+                if (saldo < 0 || saldo > total) throw new Error('Saldo de recebimentos inválido');
+              }
+              return {
+                id: String(row['Pedido ID'] || `legado-${index+1}`),
+                recebimentos,
+                itens,
+                clienteId: Number(row['Cliente ID']) || null,
+                endereco: String(row['Endereço de Entrega'] || ''),
+                data: dataParaISO(row.Data),
+                cliente: String(row.Cliente || ''),
+                whatsapp: String(row.WhatsApp || ''),
+                produto: row.Produto || '',
+                statusPedido: statusPedidos.includes(row['Status do Pedido']) ? row['Status do Pedido'] : 'Entregue',
+                qtd: parseFloat(row.Qtd) || 1,
+                unit: parseFloat(row['Valor Unit. (R$)']) || 0,
+                total,
+                situacaoPagamento,
+                valorPago,
+                valorRestante: arredonda(total - valorPago),
+                pagamento: row['Forma de Pagamento'] || 'Não informado',
+                dataEntrega: dataParaISO(row['Data de Entrega/Retirada']),
+                observacoes: String(row['Observações'] || '')
+              };
+            }) : [];
+
+          const novasSaidas = wb.SheetNames.includes('Saídas')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Saídas']).map(row => ({
+              data: dataParaISO(row.Data),
+              categoria: row.Categoria || 'Outros',
+              descricao: row['Descrição'] || '',
+              valor: parseFloat(row['Valor (R$)']) || 0,
+              compraId: Number(row['Compra ID']) || null
+            })) : [];
+
+          const novosInsumos = wb.SheetNames.includes('Fábrica_Insumos')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Fábrica_Insumos']).map((row, index) => normalizarInsumo({
+                id: row.ID,
+                nome: row.Nome,
+                preco: row['Preço (R$)'],
+                peso: row['Peso/Volume'],
+                medida: row.Unidade
+              }, index)) : [];
+
+          let novasReceitas = [];
+          if (wb.SheetNames.includes('Fábrica_Receitas_DB')) {
+             const dbText = XLSX.utils.sheet_to_json(wb.Sheets['Fábrica_Receitas_DB'])[0]?.JSON_DATA;
+             if (dbText) {
+               const receitasImportadas = JSON.parse(dbText);
+               novasReceitas = Array.isArray(receitasImportadas) ? receitasImportadas.map(receita => normalizarReceita(receita, novosInsumos)) : [];
+             }
+          }
+
+          const novosFornecedores = wb.SheetNames.includes('Fornecedores')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Fornecedores']).map((row, index) => normalizarFornecedor({
+               id: row.ID,
+               nome: row.Nome
+              }, index)) : [];
+
+          const novasCompras = wb.SheetNames.includes('Compras')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Compras']).map((row, index) => normalizarCompra({
+               id: row.ID,
+               data: row.Data,
+               fornecedorId: row['Fornecedor ID'],
+               insumoId: row['Insumo ID'],
+               insumoNome: row.Insumo,
+               precoEmbalagem: row['Preço por Embalagem (R$)'],
+               conteudoEmbalagem: row['Conteúdo por Embalagem'],
+               medida: row.Unidade,
+               quantidade: row['Qtd. Embalagens']
+              }, novosInsumos, index)) : [];
+
+          const novosProdutos = wb.SheetNames.includes('Cardapio')
+            ? XLSX.utils.sheet_to_json(wb.Sheets['Cardapio']).map((row, index) => normalizarProduto({
+                id: row.ID,
+                nome: row.Produto,
+                preco: row['Preço (R$)']
+              }, index)).filter(produto => produto.nome)
+            : criarProdutosPadrao();
+
+          if (new Set(novasEntradas.map(p => p.id)).size !== novasEntradas.length) throw new Error('IDs de pedidos duplicados');
+          const novosClientes = wb.SheetNames.includes('Clientes') ? XLSX.utils.sheet_to_json(wb.Sheets['Clientes']).map((row, index) => ({ id: Number(row.ID) || index + 1, nome: String(row.Nome || '').trim(), whatsapp: String(row.WhatsApp || ''), endereco: String(row['Endereço'] || '') })).filter(c => c.nome) : [];
+          ServicoClientes.migrar(novosClientes, novasEntradas);
+          const produtosIntegrados = integrarCardapioComReceitas(novosProdutos, novasReceitas);
+          novasEntradas.forEach(p => { garantirHistorico(p); sincronizarPagamento(p); });
+          entradas = novasEntradas;
+          clientes = novosClientes;
+          cancelarEdicaoCliente();
+          saidas = novasSaidas;
+          insumos = novosInsumos;
+          receitas = novasReceitas;
+          fornecedores = novosFornecedores;
+          compras = novasCompras;
+          produtos = produtosIntegrados;
+          alteracoesPendentes = produtosIntegrados.length !== novosProdutos.length;
+          cancelarEdicaoEntrada();
+          ativarTelaCarregada(file.name);
+          alert("Planilha (.xlsx) carregada com sucesso! Todos os dados foram restaurados.");
+        } catch(err) {
+          alert("Erro ao ler o arquivo .xlsx. Verifique se é uma planilha válida.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      e.target.value = '';
+    });
+
+    function salvarPlanilha() {
+      if (!planilhaCarregada) {
+        alert("Abra ou crie uma planilha antes de salvar!");
+        return;
+      }
+
+      entradas.forEach(p => { garantirHistorico(p); sincronizarPagamento(p); });
+      const wb = XLSX.utils.book_new();
+
+      // Aba 1: Entradas (Vendas)
+      const entWS = XLSX.utils.json_to_sheet(entradas.map(e => ({
+        'Pedido ID': e.id,
+        'Recebimentos (JSON)': JSON.stringify(e.recebimentos),
+        Data: formatDate(e.data),
+        Cliente: e.cliente || '',
+        'Cliente ID': e.clienteId || '',
+        'Endereço de Entrega': e.endereco || '',
+        WhatsApp: e.whatsapp || '',
+        Produto: e.produto,
+        'Itens da Venda (JSON)': JSON.stringify(itensDaVenda(e)),
+        'Status do Pedido': e.statusPedido || 'Entregue',
+        Qtd: e.qtd,
+        'Valor Unit. (R$)': e.unit,
+        'Valor Total (R$)': e.total,
+        'Situação do Pagamento': restanteVenda(e) === 0 ? 'Pago' : (valorPagoVenda(e) > 0 ? 'Parcial' : 'Pendente'),
+        'Valor Recebido (R$)': valorPagoVenda(e),
+        'Valor Restante (R$)': restanteVenda(e),
+        'Forma de Pagamento': e.pagamento,
+        'Data de Entrega/Retirada': e.dataEntrega ? formatDate(e.dataEntrega) : '',
+        'Observações': e.observacoes || ''
+      })));
+      XLSX.utils.book_append_sheet(wb, entWS, "Entradas");
+
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientes.map(c => ({ ID: c.id, Nome: c.nome, WhatsApp: c.whatsapp, 'Endereço': c.endereco }))), 'Clientes');
+
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(entradas.flatMap(p => p.recebimentos.map(r => ({ 'Pedido ID': p.id, Cliente: p.cliente || '', 'Registro ID': r.id, Data: r.data ? formatDate(r.data) : '', Tipo: r.tipo, 'Valor (R$)': r.valor, 'Forma de Pagamento': r.pagamento, 'Registro Estornado': r.referencia || '', 'Observações': r.observacoes || '' })))), 'Recebimentos');
+
+      // Aba 2: Saídas (Gastos)
+      const saiWS = XLSX.utils.json_to_sheet(saidas.map(s => ({
+        Data: formatDate(s.data),
+        Categoria: s.categoria,
+        'Descrição': s.descricao,
+        'Valor (R$)': s.valor,
+        'Compra ID': s.compraId || ''
+      })));
+      XLSX.utils.book_append_sheet(wb, saiWS, "Saídas");
+
+      // Aba 3: Banco de Insumos
+      const insWS = XLSX.utils.json_to_sheet(insumos.map(i => ({
+        ID: i.id,
+        Nome: i.nome,
+        'Preço (R$)': i.preco,
+        'Peso/Volume': i.peso,
+        Unidade: i.medida,
+        'Custo Unitário Calculado': i.preco / (i.peso || 1)
+      })));
+      XLSX.utils.book_append_sheet(wb, insWS, "Fábrica_Insumos");
+
+      // Cardápio editável
+      const produtosWS = XLSX.utils.json_to_sheet(produtos.map(produto => ({
+        ID: produto.id,
+        Produto: produto.nome,
+        'Preço (R$)': Number.isFinite(produto.preco) ? produto.preco : ''
+      })));
+      XLSX.utils.book_append_sheet(wb, produtosWS, "Cardapio");
+
+      // Aba 4: Fichas Técnicas Visíveis (Impressão / Leitura Humana)
+      let receitasMatriz = [["Nome da Receita", "Rendimento (unidades)", "Ingrediente", "Qtd Usada", "Medida", "Custo Parcial (R$)", "Custo Total da Receita (R$)", "Custo por Unidade (R$)", "Preço por Unidade (R$)", "Valor Total de Venda (R$)", "Lucro Total (R$)", "Margem Bruta (%)"]];
+      receitas.forEach(r => {
+        const rendimento = normalizarRendimento(r.rendimento);
+        const custoUnitario = calcularCustoPorUnidade(r.custoTotal, rendimento);
+        const margem = calcularMargem(custoUnitario, r.sellingPrice);
+        const valorTotal = Number.isFinite(r.sellingPrice) ? r.sellingPrice * rendimento : null;
+        const lucroTotal = valorTotal === null ? null : valorTotal - r.custoTotal;
+        r.ingredientes.forEach((ing, idx) => {
+          receitasMatriz.push([
+            idx === 0 ? r.nome : "",
+            idx === 0 ? rendimento : "",
+            ing.nome,
+            ing.qtdUsada,
+            ing.medida,
+            ing.custo,
+            idx === 0 ? r.custoTotal : "",
+            idx === 0 ? custoUnitario : "",
+            idx === 0 && Number.isFinite(r.sellingPrice) ? r.sellingPrice : "",
+            idx === 0 && valorTotal !== null ? valorTotal : "",
+            idx === 0 && lucroTotal !== null ? lucroTotal : "",
+            idx === 0 && margem !== null ? margem : ""
+          ]);
+        });
+        receitasMatriz.push(new Array(12).fill(""));
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(receitasMatriz), "Fábrica_Fichas_Técnicas");
+
+      // Aba 5: Fichas Técnicas Banco de Dados (Para restauração 100% fiel no sistema)
+      const recDB = XLSX.utils.json_to_sheet([{ JSON_DATA: JSON.stringify(receitas) }]);
+      XLSX.utils.book_append_sheet(wb, recDB, "Fábrica_Receitas_DB");
+
+      // Aba 6: Fornecedores
+      const fornecedoresWS = XLSX.utils.json_to_sheet(fornecedores.map(fornecedor => ({
+        ID: fornecedor.id,
+        Nome: fornecedor.nome
+      })));
+      XLSX.utils.book_append_sheet(wb, fornecedoresWS, "Fornecedores");
+
+      // Aba 7: Histórico de Compras
+      const comprasWS = XLSX.utils.json_to_sheet(compras.map(compra => ({
+        ID: compra.id,
+        Data: formatDate(compra.data),
+        'Fornecedor ID': compra.fornecedorId,
+        Fornecedor: nomeFornecedorPorId(compra.fornecedorId),
+        'Insumo ID': compra.insumoId,
+        Insumo: compra.insumoNome,
+        'Preço por Embalagem (R$)': compra.precoEmbalagem,
+        'Conteúdo por Embalagem': compra.conteudoEmbalagem,
+        Unidade: compra.medida,
+        'Qtd. Embalagens': compra.quantidade,
+        'Custo Unitário (R$)': custoUnitarioCompra(compra),
+        'Total da Compra (R$)': compra.precoEmbalagem * compra.quantidade
+      })));
+      XLSX.utils.book_append_sheet(wb, comprasWS, "Compras");
+
+      // Aba 8: Resumo Financeiro
+      const vendasValidas = entradas.filter(entrada => entrada.statusPedido !== 'Cancelado');
+      const totalVendas = arredonda(vendasValidas.reduce((a, c) => a + c.total, 0));
+      const totalEntradas = recebimentosNoPeriodo('', '');
+      const totalAReceber = arredonda(vendasValidas.reduce((a, c) => a + restanteVenda(c), 0));
+      const totalSaidas = arredonda(saidas.reduce((a, c) => a + c.valor, 0));
+      const lucro = totalEntradas - totalSaidas;
+      const resumoMatriz = [
+        ["RESUMO FINANCEIRO DA CONFEITARIA", ""],
+        ["Data da Exportação", new Date().toLocaleDateString('pt-BR')],
+        ["", ""],
+        ["Total de Pedidos", totalVendas],
+        ["Total Recebido (Entradas)", totalEntradas],
+        ["Total a Receber", totalAReceber],
+        ["Total de Despesas (Saídas)", totalSaidas],
+        ["LUCRO LÍQUIDO", lucro]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumoMatriz), "Resumo");
+
+      // Baixa o arquivo XLSX no navegador
+      const dataHoje = dataLocalISO();
+      XLSX.writeFile(wb, `Gestao_Confeitaria_${dataHoje}.xlsx`);
+      alteracoesPendentes = false;
+    }
+  </script>
+</body>
+</html>
